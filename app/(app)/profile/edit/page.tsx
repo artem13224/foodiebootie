@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { ftInToCm, cmToFtIn, kgToLbs, lbsToKg } from '@/lib/science/utils'
 import { useUnitSystem } from '@/contexts/UnitSystemContext'
@@ -75,7 +74,6 @@ const sectionStyle: React.CSSProperties = {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function EditProfilePage() {
-  const router = useRouter()
   const { unitSystem: contextUnit } = useUnitSystem()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -278,7 +276,7 @@ export default function EditProfilePage() {
       })
     }
 
-    router.push('/profile')
+    window.location.href = '/profile'
   }
 
   // ── Render ───────────────────────────────────────────────────────────────
@@ -299,7 +297,7 @@ export default function EditProfilePage() {
       {/* ── Header ── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', paddingTop: 'var(--space-6)', paddingBottom: 'var(--space-5)' }}>
         <button
-          onClick={() => router.push('/profile')}
+          onClick={() => { window.location.href = '/profile' }}
           style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--color-text-dim)', display: 'flex' }}
         >
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
