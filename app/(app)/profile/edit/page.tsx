@@ -292,7 +292,7 @@ export default function EditProfilePage() {
   }
 
   return (
-    <div className="screen" style={{ paddingTop: 0, paddingBottom: '100px' }}>
+    <div className="screen" style={{ paddingTop: 0, paddingBottom: '120px' }}>
 
       {/* ── Header ── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', paddingTop: 'var(--space-6)', paddingBottom: 'var(--space-5)' }}>
@@ -518,17 +518,8 @@ export default function EditProfilePage() {
         </div>
       )}
 
-      {/* ── Fixed save button ── */}
-      <div style={{
-        position: 'fixed',
-        bottom: 0, left: 0, right: 0,
-        padding: '16px 20px',
-        background: 'var(--color-bg)',
-        borderTop: '1px solid var(--color-border-soft)',
-        maxWidth: '390px',
-        margin: '0 auto',
-        zIndex: 10,
-      }}>
+      {/* ── Save button ── */}
+      <div style={{ marginTop: '8px' }}>
         <button
           onClick={handleSave}
           disabled={saving}
