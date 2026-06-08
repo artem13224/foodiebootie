@@ -1,25 +1,28 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import TabBar from '@/components/ui/TabBar'
 
-export default async function AppLayout({ children }: { children: React.ReactNode }) {
+export default async function OnboardingLayout({ children }: { children: React.ReactNode }) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
+  // Must be logged in to onboard
   if (!user) redirect('/login')
 
-  // Redirect to onboarding if profile setup is not complete
+  // If already complete, send to the app
   const { data: profileData } = await supabase
     .from('profiles')
     .select('onboarding_complete')
     .maybeSingle() as { data: { onboarding_complete: boolean } | null; error: unknown }
 
-  if (!profileData?.onboarding_complete) redirect('/onboarding')
+  if (profileData?.onboarding_complete) redirect('/today')
 
   return (
-    <div style={{ position: 'relative', minHeight: '100dvh' }}>
-      <main style={{ maxWidth: '390px', margin: '0 auto' }}>{children}</main>
-      <TabBar />
+    <div style={{
+      minHeight: '100dvh',
+      backgroundColor: 'var(--color-bg)',
+      color: 'var(--color-text)',
+    }}>
+      {children}
     </div>
   )
 }

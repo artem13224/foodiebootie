@@ -8,6 +8,7 @@ import { useAdaptiveTDEE } from '@/hooks/useAdaptiveTDEE'
 import CalorieHero from '@/components/ui/CalorieHero'
 import MacroRing from '@/components/ui/MacroRing'
 import MealRow from '@/components/ui/MealRow'
+import WeightEntry from '@/components/forms/WeightEntry'
 import type { MealType } from '@/types'
 
 const MEALS: { type: MealType; label: string }[] = [
@@ -58,6 +59,7 @@ export default function TodayPage() {
   const [selectedDate, setSelectedDate] = useState(todayStr)
   const [animate, setAnimate] = useState(false)
   const [username, setUsername] = useState('')
+  const [showWeightEntry, setShowWeightEntry] = useState(false)
 
   const isToday = selectedDate === todayStr
   const isPastDate = selectedDate < todayStr
@@ -99,7 +101,7 @@ export default function TodayPage() {
         paddingTop: 0,
         // Explicit inline style ensures content clears the fixed tab bar
         // regardless of CSS class loading order
-        paddingBottom: 'max(92px, calc(66px + env(safe-area-inset-bottom)))',
+        paddingBottom: 'max(84px, calc(66px + env(safe-area-inset-bottom)))',
       }}
     >
       {/* ── Header ──────────────────────────────────────────────────────── */}
@@ -213,37 +215,42 @@ export default function TodayPage() {
 
         </div>
 
-        {/* Username + avatar */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-          <span style={{
-            fontFamily: "'Barlow Condensed', sans-serif",
-            fontWeight: 700,
-            fontSize: '13px',
-            letterSpacing: 'var(--tracking-wide)',
-            textTransform: 'uppercase',
-            color: 'var(--color-accent)',
-          }}>
-            {username}
-          </span>
-          <div style={{
-            width: '28px',
-            height: '28px',
-            backgroundColor: 'var(--color-surface)',
-            border: '1px solid var(--color-border)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-          }}>
+        {/* Username + avatar — only rendered once profile has loaded */}
+        {username ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
             <span style={{
-              fontFamily: "'Bebas Neue', sans-serif",
-              fontSize: '14px',
-              color: 'var(--color-text)',
+              fontFamily: "'Barlow Condensed', sans-serif",
+              fontWeight: 700,
+              fontSize: '13px',
+              letterSpacing: 'var(--tracking-wide)',
+              textTransform: 'uppercase',
+              color: 'var(--color-accent)',
             }}>
-              {username?.[0]?.toUpperCase() ?? '?'}
+              {username}
             </span>
+            <div style={{
+              width: '28px',
+              height: '28px',
+              backgroundColor: 'var(--color-surface)',
+              border: '1px solid var(--color-border)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}>
+              <span style={{
+                fontFamily: "'Bebas Neue', sans-serif",
+                fontSize: '14px',
+                color: 'var(--color-text)',
+              }}>
+                {username[0].toUpperCase()}
+              </span>
+            </div>
           </div>
-        </div>
+        ) : (
+          /* Placeholder keeps header height stable while profile loads */
+          <div style={{ width: '28px', height: '28px' }} />
+        )}
 
       </div>
 
@@ -335,6 +342,49 @@ export default function TodayPage() {
           />
         ))}
       </div>
+
+      {/* ── Floating weight log button ────────────────────────────── */}
+      <button
+        onClick={() => setShowWeightEntry(true)}
+        aria-label="Log weight"
+        style={{
+          position: 'fixed',
+          bottom: 'calc(66px + env(safe-area-inset-bottom) + 14px)',
+          right: '20px',
+          width: '40px',
+          height: '40px',
+          backgroundColor: 'var(--color-accent)',
+          border: 'none',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: '#fff',
+          zIndex: 50,
+        }}
+      >
+        {/* Scale / weight icon */}
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <path d="M3 16L5 8H15L17 16H3Z" stroke="currentColor" strokeWidth="1.5" />
+          <path d="M7 8C7 6 8 4 10 4C12 4 13 6 13 8" stroke="currentColor" strokeWidth="1.5" />
+          <path d="M10 4V2" stroke="currentColor" strokeWidth="1.5" />
+        </svg>
+      </button>
+
+      {/* Weight entry modal */}
+      {showWeightEntry && (
+        <WeightEntry
+          onClose={() => setShowWeightEntry(false)}
+          onSaved={async (shouldRecalculate) => {
+            setShowWeightEntry(false)
+            if (shouldRecalculate) {
+              // Fire-and-forget TDEE recalculation
+              fetch('/api/tdee/calculate', { method: 'POST' }).catch(() => {})
+            }
+          }}
+          initialDate={selectedDate}
+        />
+      )}
     </div>
   )
 }

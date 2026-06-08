@@ -317,6 +317,11 @@ export type Database = {
           confidence: 'low' | 'medium' | 'high' | null
           adaptation_flag: boolean
           notes: string | null
+          // Added in migration 002
+          protein_g: number | null
+          fat_g: number | null
+          carbs_g: number | null
+          daily_kcal_target: number | null
         }
         Insert: {
           id?: string
@@ -328,6 +333,10 @@ export type Database = {
           confidence?: 'low' | 'medium' | 'high' | null
           adaptation_flag?: boolean
           notes?: string | null
+          protein_g?: number | null
+          fat_g?: number | null
+          carbs_g?: number | null
+          daily_kcal_target?: number | null
         }
         Update: {
           tdee_kcal?: number
@@ -336,6 +345,10 @@ export type Database = {
           confidence?: 'low' | 'medium' | 'high' | null
           adaptation_flag?: boolean
           notes?: string | null
+          protein_g?: number | null
+          fat_g?: number | null
+          carbs_g?: number | null
+          daily_kcal_target?: number | null
         }
       }
       exercise_logs: {
