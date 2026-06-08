@@ -8,7 +8,6 @@ import { useAdaptiveTDEE } from '@/hooks/useAdaptiveTDEE'
 import CalorieHero from '@/components/ui/CalorieHero'
 import MacroRing from '@/components/ui/MacroRing'
 import MealRow from '@/components/ui/MealRow'
-import WeightEntry from '@/components/forms/WeightEntry'
 import type { MealType } from '@/types'
 
 const MEALS: { type: MealType; label: string }[] = [
@@ -59,7 +58,6 @@ export default function TodayPage() {
   const [selectedDate, setSelectedDate] = useState(todayStr)
   const [animate, setAnimate] = useState(false)
   const [username, setUsername] = useState('')
-  const [showWeightEntry, setShowWeightEntry] = useState(false)
 
   const isToday = selectedDate === todayStr
   const isPastDate = selectedDate < todayStr
@@ -343,48 +341,6 @@ export default function TodayPage() {
         ))}
       </div>
 
-      {/* ── Floating weight log button ────────────────────────────── */}
-      <button
-        onClick={() => setShowWeightEntry(true)}
-        aria-label="Log weight"
-        style={{
-          position: 'fixed',
-          bottom: 'calc(66px + env(safe-area-inset-bottom) + 14px)',
-          right: '20px',
-          width: '40px',
-          height: '40px',
-          backgroundColor: 'var(--color-accent)',
-          border: 'none',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: '#fff',
-          zIndex: 50,
-        }}
-      >
-        {/* Scale / weight icon */}
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-          <path d="M3 16L5 8H15L17 16H3Z" stroke="currentColor" strokeWidth="1.5" />
-          <path d="M7 8C7 6 8 4 10 4C12 4 13 6 13 8" stroke="currentColor" strokeWidth="1.5" />
-          <path d="M10 4V2" stroke="currentColor" strokeWidth="1.5" />
-        </svg>
-      </button>
-
-      {/* Weight entry modal */}
-      {showWeightEntry && (
-        <WeightEntry
-          onClose={() => setShowWeightEntry(false)}
-          onSaved={async (shouldRecalculate) => {
-            setShowWeightEntry(false)
-            if (shouldRecalculate) {
-              // Fire-and-forget TDEE recalculation
-              fetch('/api/tdee/calculate', { method: 'POST' }).catch(() => {})
-            }
-          }}
-          initialDate={selectedDate}
-        />
-      )}
     </div>
   )
 }
