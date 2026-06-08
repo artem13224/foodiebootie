@@ -3,8 +3,11 @@
 import { useState, useEffect, useCallback, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import BarcodeScanner from '@/components/ui/BarcodeScanner'
 import type { FoodResult } from '@/types/food'
 import type { MealType } from '@/types'
+
+// ── Constants ────────────────────────────────────────────────────────────────
 
 const MEAL_LABELS: Record<MealType, string> = {
   breakfast: 'BREAKFAST',
@@ -16,27 +19,97 @@ const MEAL_LABELS: Record<MealType, string> = {
 }
 const MEAL_TYPES = Object.keys(MEAL_LABELS) as MealType[]
 
-function macro(per100g: number, servingG: number) {
-  return Math.round((per100g / 100) * servingG * 10) / 10
+type SourceFilter = 'all' | 'usda' | 'off' | 'nutritionix'
+type SortOption = 'relevance' | 'protein' | 'kcal_asc' | 'kcal_desc'
+type View = 'search' | 'quickAdd' | 'myFoods'
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function m(per100g: number, g: number) {
+  return Math.round((per100g / 100) * g * 10) / 10
 }
+
+function applySort(list: FoodResult[], sort: SortOption): FoodResult[] {
+  if (sort === 'relevance') return list
+  return [...list].sort((a, b) => {
+    if (sort === 'protein') return b.proteinPer100g - a.proteinPer100g
+    if (sort === 'kcal_asc') return a.kcalPer100g - b.kcalPer100g
+    if (sort === 'kcal_desc') return b.kcalPer100g - a.kcalPer100g
+    return 0
+  })
+}
+
+// ── Custom food type (Supabase row) ──────────────────────────────────────────
+
+interface CustomFood {
+  id: string
+  name: string
+  brand: string | null
+  serving_g: number
+  kcal_per_100g: number
+  protein_per_100g: number
+  carbs_per_100g: number
+  fat_per_100g: number
+  fiber_per_100g: number | null
+}
+
+function customToResult(cf: CustomFood): FoodResult {
+  return {
+    id: cf.id,
+    source: 'custom',
+    name: cf.name,
+    brand: cf.brand ?? undefined,
+    kcalPer100g: cf.kcal_per_100g,
+    proteinPer100g: cf.protein_per_100g,
+    carbsPer100g: cf.carbs_per_100g,
+    fatPer100g: cf.fat_per_100g,
+    fiberPer100g: cf.fiber_per_100g ?? 0,
+    servingG: cf.serving_g,
+    customFoodId: cf.id,
+  }
+}
+
+// ── Main page ────────────────────────────────────────────────────────────────
 
 function LogPageInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const initialMeal = (searchParams.get('meal') as MealType) ?? 'breakfast'
 
+  // View state
+  const [view, setView] = useState<View>('search')
+
+  // Search state
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<FoodResult[]>([])
   const [searching, setSearching] = useState(false)
+  const [source, setSource] = useState<SourceFilter>('all')
+  const [sortBy, setSortBy] = useState<SortOption>('relevance')
+  const [showRecent, setShowRecent] = useState(false)
+  const [recentLogs, setRecentLogs] = useState<FoodResult[]>([])
+
+  // Bottom sheet state
   const [selectedFood, setSelectedFood] = useState<FoodResult | null>(null)
   const [servingG, setServingG] = useState('100')
+  const [sheetVisible, setSheetVisible] = useState(false)
   const [selectedMeal, setSelectedMeal] = useState<MealType>(initialMeal)
   const [logging, setLogging] = useState(false)
-  const [sheetVisible, setSheetVisible] = useState(false)
-  const [view, setView] = useState<'search' | 'quickAdd'>('search')
+
+  // Barcode state
+  const [scannerOpen, setScannerOpen] = useState(false)
+  const [barcodeLoading, setBarcodeLoading] = useState(false)
+  const [barcodeNotFound, setBarcodeNotFound] = useState(false)
+
+  // Quick add state
   const [quickAdd, setQuickAdd] = useState({ name: '', kcal: '', protein: '', carbs: '', fat: '' })
-  const [recentLogs, setRecentLogs] = useState<FoodResult[]>([])
-  const [showRecent, setShowRecent] = useState(false)
+
+  // My Foods state
+  const [customFoods, setCustomFoods] = useState<CustomFood[]>([])
+  const [myFoodsLoading, setMyFoodsLoading] = useState(false)
+  const [myFoodsQuery, setMyFoodsQuery] = useState('')
+  const [showCreateForm, setShowCreateForm] = useState(false)
+  const [newFood, setNewFood] = useState({ name: '', brand: '', serving: '100', kcal: '', protein: '', carbs: '', fat: '', fiber: '' })
+  const [creatingFood, setCreatingFood] = useState(false)
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -47,51 +120,72 @@ function LogPageInner() {
     loadRecent()
   }, [])
 
+  // Load custom foods when entering My Foods view
+  useEffect(() => {
+    if (view === 'myFoods') loadCustomFoods()
+  }, [view])
+
+  // ── Data loaders ─────────────────────────────────────────────────────────
+
   async function loadRecent() {
     const supabase = createClient()
     const { data: rawData } = await supabase
       .from('food_logs')
-      .select('food_name, kcal, protein_g, carbs_g, fat_g, fiber_g, serving_g, usda_food_id')
+      .select('food_name,kcal,protein_g,carbs_g,fat_g,fiber_g,serving_g,usda_food_id')
       .order('created_at', { ascending: false })
       .limit(30)
 
-    type RecentRow = { food_name: string; kcal: number; protein_g: number; carbs_g: number; fat_g: number; fiber_g: number | null; serving_g: number; usda_food_id: string | null }
-    const data = rawData as RecentRow[] | null
+    type Row = { food_name: string; kcal: number; protein_g: number; carbs_g: number; fat_g: number; fiber_g: number | null; serving_g: number; usda_food_id: string | null }
+    const data = rawData as Row[] | null
     if (!data) return
 
-    // Deduplicate by food_name, keep most recent
     const seen = new Set<string>()
     const unique: FoodResult[] = []
     for (const log of data) {
       if (seen.has(log.food_name)) continue
       seen.add(log.food_name)
-      const servingG = Number(log.serving_g)
+      const sg = Number(log.serving_g)
       unique.push({
         id: log.usda_food_id ?? `recent-${log.food_name}`,
         source: 'usda',
         name: log.food_name,
-        kcalPer100g: servingG > 0 ? (Number(log.kcal) / servingG) * 100 : Number(log.kcal),
-        proteinPer100g: servingG > 0 ? (Number(log.protein_g) / servingG) * 100 : Number(log.protein_g),
-        carbsPer100g: servingG > 0 ? (Number(log.carbs_g) / servingG) * 100 : Number(log.carbs_g),
-        fatPer100g: servingG > 0 ? (Number(log.fat_g) / servingG) * 100 : Number(log.fat_g),
+        kcalPer100g: sg > 0 ? (Number(log.kcal) / sg) * 100 : Number(log.kcal),
+        proteinPer100g: sg > 0 ? (Number(log.protein_g) / sg) * 100 : Number(log.protein_g),
+        carbsPer100g: sg > 0 ? (Number(log.carbs_g) / sg) * 100 : Number(log.carbs_g),
+        fatPer100g: sg > 0 ? (Number(log.fat_g) / sg) * 100 : Number(log.fat_g),
         fiberPer100g: 0,
-        servingG,
+        servingG: sg,
       })
       if (unique.length >= 10) break
     }
     setRecentLogs(unique)
   }
 
-  const search = useCallback(async (q: string) => {
+  async function loadCustomFoods() {
+    setMyFoodsLoading(true)
+    const supabase = createClient()
+    const { data } = await supabase
+      .from('custom_foods')
+      .select('id,name,brand,serving_g,kcal_per_100g,protein_per_100g,carbs_per_100g,fat_per_100g,fiber_per_100g')
+      .order('created_at', { ascending: false })
+    setCustomFoods((data ?? []) as CustomFood[])
+    setMyFoodsLoading(false)
+  }
+
+  // ── Search ────────────────────────────────────────────────────────────────
+
+  const search = useCallback(async (q: string, src: SourceFilter) => {
     if (q.length < 2) { setResults([]); setSearching(false); return }
     setSearching(true)
     try {
-      const res = await fetch(`/api/food/search?q=${encodeURIComponent(q)}`)
+      const endpoint =
+        src === 'nutritionix'
+          ? `/api/food/restaurant?q=${encodeURIComponent(q)}`
+          : `/api/food/search?q=${encodeURIComponent(q)}`
+      const res = await fetch(endpoint)
       const json = await res.json()
       setResults(json.results ?? [])
-    } catch {
-      setResults([])
-    }
+    } catch { setResults([]) }
     setSearching(false)
   }, [])
 
@@ -99,8 +193,44 @@ function LogPageInner() {
     setQuery(val)
     setShowRecent(false)
     if (debounceRef.current) clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(() => search(val), 300)
+    debounceRef.current = setTimeout(() => search(val, source), 300)
   }
+
+  function handleSourceChange(s: SourceFilter) {
+    setSource(s)
+    if (query.length >= 2) {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+      debounceRef.current = setTimeout(() => search(query, s), 150)
+    }
+  }
+
+  // Derived display list
+  const filteredResults = source === 'all' || source === 'nutritionix'
+    ? results
+    : results.filter(r => r.source === source)
+  const displayList = showRecent ? recentLogs : applySort(filteredResults, sortBy)
+
+  // ── Barcode ───────────────────────────────────────────────────────────────
+
+  async function handleBarcodeDetected(code: string) {
+    setScannerOpen(false)
+    setBarcodeLoading(true)
+    setBarcodeNotFound(false)
+    try {
+      const res = await fetch(`/api/food/barcode?code=${encodeURIComponent(code)}`)
+      const json = await res.json()
+      if (json.food) {
+        openSheet(json.food as FoodResult)
+      } else {
+        setBarcodeNotFound(true)
+      }
+    } catch {
+      setBarcodeNotFound(true)
+    }
+    setBarcodeLoading(false)
+  }
+
+  // ── Bottom sheet ──────────────────────────────────────────────────────────
 
   function openSheet(food: FoodResult) {
     setSelectedFood(food)
@@ -114,12 +244,14 @@ function LogPageInner() {
     setTimeout(() => setSelectedFood(null), 300)
   }
 
+  // ── Log actions ───────────────────────────────────────────────────────────
+
   async function handleLog() {
     if (!selectedFood || logging) return
     const g = parseFloat(servingG)
     if (!g || g <= 0) return
-
     setLogging(true)
+
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setLogging(false); return }
@@ -132,16 +264,17 @@ function LogPageInner() {
       meal_type: selectedMeal,
       food_name: selectedFood.name,
       serving_g: g,
-      kcal: macro(selectedFood.kcalPer100g, g),
-      protein_g: macro(selectedFood.proteinPer100g, g),
-      carbs_g: macro(selectedFood.carbsPer100g, g),
-      fat_g: macro(selectedFood.fatPer100g, g),
-      fiber_g: macro(selectedFood.fiberPer100g, g),
+      kcal: m(selectedFood.kcalPer100g, g),
+      protein_g: m(selectedFood.proteinPer100g, g),
+      carbs_g: m(selectedFood.carbsPer100g, g),
+      fat_g: m(selectedFood.fatPer100g, g),
+      fiber_g: m(selectedFood.fiberPer100g, g),
       usda_food_id: selectedFood.source === 'usda' ? selectedFood.id : null,
       off_food_id: selectedFood.source === 'off' ? selectedFood.id : null,
+      custom_food_id: selectedFood.customFoodId ?? null,
     })
 
-    router.push('/today')
+    router.back() // ISSUE 1 — always return to previous screen
   }
 
   async function handleQuickAdd() {
@@ -167,20 +300,78 @@ function LogPageInner() {
       fat_g: parseFloat(quickAdd.fat) || 0,
     })
 
-    router.push('/today')
+    router.back() // ISSUE 1
   }
 
-  const g = parseFloat(servingG) || 0
-  const previewKcal = selectedFood ? macro(selectedFood.kcalPer100g, g) : 0
-  const previewProtein = selectedFood ? macro(selectedFood.proteinPer100g, g) : 0
-  const previewCarbs = selectedFood ? macro(selectedFood.carbsPer100g, g) : 0
-  const previewFat = selectedFood ? macro(selectedFood.fatPer100g, g) : 0
+  async function handleCreateCustomFood() {
+    const kcal = parseFloat(newFood.kcal)
+    if (!newFood.name || !kcal) return
+    setCreatingFood(true)
 
-  const displayList = showRecent ? recentLogs : results
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setCreatingFood(false); return }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase.from('custom_foods') as any).insert({
+      created_by: user.id,
+      name: newFood.name.trim(),
+      brand: newFood.brand.trim() || null,
+      serving_g: parseFloat(newFood.serving) || 100,
+      kcal_per_100g: kcal,
+      protein_per_100g: parseFloat(newFood.protein) || 0,
+      carbs_per_100g: parseFloat(newFood.carbs) || 0,
+      fat_per_100g: parseFloat(newFood.fat) || 0,
+      fiber_per_100g: parseFloat(newFood.fiber) || null,
+      is_shared: true,
+    })
+
+    setCreatingFood(false)
+    setShowCreateForm(false)
+    setNewFood({ name: '', brand: '', serving: '100', kcal: '', protein: '', carbs: '', fat: '', fiber: '' })
+    loadCustomFoods()
+  }
+
+  // ── Preview macros ────────────────────────────────────────────────────────
+
+  const g = parseFloat(servingG) || 0
+  const previewKcal = selectedFood ? m(selectedFood.kcalPer100g, g) : 0
+  const previewProtein = selectedFood ? m(selectedFood.proteinPer100g, g) : 0
+  const previewCarbs = selectedFood ? m(selectedFood.carbsPer100g, g) : 0
+  const previewFat = selectedFood ? m(selectedFood.fatPer100g, g) : 0
+
+  // ── Filtered custom foods for My Foods view ───────────────────────────────
+  const filteredCustomFoods = myFoodsQuery.length < 2
+    ? customFoods
+    : customFoods.filter(cf =>
+        cf.name.toLowerCase().includes(myFoodsQuery.toLowerCase()) ||
+        (cf.brand ?? '').toLowerCase().includes(myFoodsQuery.toLowerCase())
+      )
+
+  // ── Source badge color ────────────────────────────────────────────────────
+  function sourceBadge(src: FoodResult['source']) {
+    if (src === 'off') return 'PACKAGED'
+    if (src === 'nutritionix') return 'RESTAURANT'
+    if (src === 'custom') return 'MY FOODS'
+    return 'USDA'
+  }
+
+  // ────────────────────────────────────────────────────────────────────────
+  // RENDER
+  // ────────────────────────────────────────────────────────────────────────
 
   return (
     <div className="screen" style={{ paddingTop: 0 }}>
-      {/* Header */}
+
+      {/* ── Barcode scanner modal ── */}
+      {scannerOpen && (
+        <BarcodeScanner
+          onDetect={handleBarcodeDetected}
+          onClose={() => setScannerOpen(false)}
+        />
+      )}
+
+      {/* ── Header ── */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
@@ -189,7 +380,10 @@ function LogPageInner() {
         paddingBottom: 'var(--space-4)',
       }}>
         <button
-          onClick={() => router.back()}
+          onClick={() => {
+            if (view !== 'search') { setView('search'); return }
+            router.back()
+          }}
           style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--color-text-dim)', display: 'flex' }}
         >
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -204,8 +398,32 @@ function LogPageInner() {
           textTransform: 'uppercase',
           color: 'var(--color-text)',
         }}>
-          {view === 'quickAdd' ? 'QUICK ADD' : 'LOG FOOD'}
+          {view === 'quickAdd' ? 'QUICK ADD' : view === 'myFoods' ? 'MY FOODS' : 'LOG FOOD'}
         </span>
+
+        {/* Recipe maker link (visible in search view) */}
+        {view === 'search' && (
+          <button
+            onClick={() => router.push('/recipe')}
+            style={{
+              marginLeft: 'auto',
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: 'var(--color-text-dim)',
+              fontFamily: "'Barlow Condensed', sans-serif",
+              fontWeight: 700, fontSize: '10px',
+              letterSpacing: 'var(--tracking-wide)',
+              textTransform: 'uppercase',
+              display: 'flex', alignItems: 'center', gap: '4px',
+            }}
+          >
+            <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+              <path d="M7 2V12M2 7H12" stroke="currentColor" strokeWidth="1.3" />
+            </svg>
+            RECIPE
+          </button>
+        )}
+
+        {/* Cancel quick-add */}
         {view === 'quickAdd' && (
           <button
             onClick={() => setView('search')}
@@ -220,52 +438,241 @@ function LogPageInner() {
             CANCEL
           </button>
         )}
+
+        {/* Create food in My Foods */}
+        {view === 'myFoods' && !showCreateForm && (
+          <button
+            onClick={() => setShowCreateForm(true)}
+            style={{
+              marginLeft: 'auto', background: 'none', border: 'none',
+              cursor: 'pointer', color: 'var(--color-accent)',
+              fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700,
+              fontSize: '11px', letterSpacing: 'var(--tracking-wide)',
+              textTransform: 'uppercase',
+            }}
+          >
+            + CREATE
+          </button>
+        )}
       </div>
 
-      {view === 'quickAdd' ? (
-        /* ── Quick Add form ── */
+      {/* ════════════════════════════════════════════════════════════════════
+          QUICK ADD VIEW
+      ════════════════════════════════════════════════════════════════════ */}
+      {view === 'quickAdd' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-          <input
-            placeholder="FOOD NAME"
-            value={quickAdd.name}
+          <input placeholder="FOOD NAME" value={quickAdd.name}
             onChange={e => setQuickAdd(q => ({ ...q, name: e.target.value }))}
-            style={inputStyle}
-            autoFocus
-          />
-          <input
-            type="number"
-            placeholder="CALORIES (KCAL)"
-            value={quickAdd.kcal}
+            style={inputStyle} autoFocus />
+          <input type="number" placeholder="CALORIES (KCAL)" value={quickAdd.kcal}
             onChange={e => setQuickAdd(q => ({ ...q, kcal: e.target.value }))}
-            style={inputStyle}
-          />
+            style={inputStyle} />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-2)' }}>
             {(['protein', 'carbs', 'fat'] as const).map(macro => (
-              <input
-                key={macro}
-                type="number"
+              <input key={macro} type="number"
                 placeholder={macro.toUpperCase() + ' G'}
                 value={quickAdd[macro]}
                 onChange={e => setQuickAdd(q => ({ ...q, [macro]: e.target.value }))}
-                style={inputStyle}
-              />
+                style={inputStyle} />
             ))}
           </div>
-          {/* Meal selector */}
           <MealSelector selected={selectedMeal} onChange={setSelectedMeal} />
-          <button
-            onClick={handleQuickAdd}
-            disabled={logging || !quickAdd.name || !quickAdd.kcal}
-            style={logBtnStyle(logging)}
-          >
+          <button onClick={handleQuickAdd} disabled={logging || !quickAdd.name || !quickAdd.kcal}
+            style={logBtnStyle(logging || !quickAdd.name || !quickAdd.kcal)}>
             {logging ? 'LOGGING...' : 'LOG'}
           </button>
         </div>
-      ) : (
-        /* ── Search view ── */
-        <>
-          {/* Search bar */}
+      )}
+
+      {/* ════════════════════════════════════════════════════════════════════
+          MY FOODS VIEW
+      ════════════════════════════════════════════════════════════════════ */}
+      {view === 'myFoods' && (
+        <div>
+          {/* Create food form */}
+          {showCreateForm && (
+            <div style={{
+              border: '1px solid var(--color-accent)',
+              padding: 'var(--space-4)',
+              marginBottom: 'var(--space-5)',
+              display: 'flex', flexDirection: 'column', gap: 'var(--space-3)',
+            }}>
+              <div style={{
+                fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700,
+                fontSize: '9px', letterSpacing: 'var(--tracking-wide)',
+                textTransform: 'uppercase', color: 'var(--color-accent)',
+                marginBottom: 'var(--space-1)',
+              }}>
+                CREATE CUSTOM FOOD
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-2)' }}>
+                <input placeholder="FOOD NAME *" value={newFood.name}
+                  onChange={e => setNewFood(f => ({ ...f, name: e.target.value }))}
+                  style={{ ...inputStyle, gridColumn: '1 / -1' }} autoFocus />
+                <input placeholder="BRAND (optional)" value={newFood.brand}
+                  onChange={e => setNewFood(f => ({ ...f, brand: e.target.value }))}
+                  style={{ ...inputStyle, gridColumn: '1 / -1' }} />
+                <input type="number" placeholder="SERVING G" value={newFood.serving}
+                  onChange={e => setNewFood(f => ({ ...f, serving: e.target.value }))}
+                  style={inputStyle} />
+                <input type="number" placeholder="KCAL / 100G *" value={newFood.kcal}
+                  onChange={e => setNewFood(f => ({ ...f, kcal: e.target.value }))}
+                  style={inputStyle} />
+                <input type="number" placeholder="PROTEIN G / 100G" value={newFood.protein}
+                  onChange={e => setNewFood(f => ({ ...f, protein: e.target.value }))}
+                  style={inputStyle} />
+                <input type="number" placeholder="CARBS G / 100G" value={newFood.carbs}
+                  onChange={e => setNewFood(f => ({ ...f, carbs: e.target.value }))}
+                  style={inputStyle} />
+                <input type="number" placeholder="FAT G / 100G" value={newFood.fat}
+                  onChange={e => setNewFood(f => ({ ...f, fat: e.target.value }))}
+                  style={inputStyle} />
+                <input type="number" placeholder="FIBER G / 100G" value={newFood.fiber}
+                  onChange={e => setNewFood(f => ({ ...f, fiber: e.target.value }))}
+                  style={inputStyle} />
+              </div>
+              <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                <button onClick={handleCreateCustomFood}
+                  disabled={creatingFood || !newFood.name || !newFood.kcal}
+                  style={{ ...logBtnStyle(creatingFood || !newFood.name || !newFood.kcal), flex: 1 }}>
+                  {creatingFood ? 'SAVING...' : 'SAVE FOOD'}
+                </button>
+                <button onClick={() => setShowCreateForm(false)} style={{
+                  padding: 'var(--space-4) var(--space-5)',
+                  background: 'none',
+                  border: '1px solid var(--color-border)',
+                  cursor: 'pointer',
+                  color: 'var(--color-text-dim)',
+                  fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700,
+                  fontSize: '14px',
+                  letterSpacing: 'var(--tracking-wide)',
+                }}>
+                  ✕
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Search within my foods */}
           <div style={{ position: 'relative', marginBottom: 'var(--space-4)' }}>
+            <input
+              type="search"
+              placeholder="Filter my foods..."
+              value={myFoodsQuery}
+              onChange={e => setMyFoodsQuery(e.target.value)}
+              style={{ ...inputStyle, paddingLeft: '14px' }}
+            />
+          </div>
+
+          {myFoodsLoading ? (
+            <div style={{ textAlign: 'center', paddingTop: 'var(--space-8)' }}>
+              <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '11px', letterSpacing: 'var(--tracking-wide)', textTransform: 'uppercase', color: 'var(--color-text-dim)' }}>
+                LOADING...
+              </span>
+            </div>
+          ) : filteredCustomFoods.length === 0 ? (
+            <div style={{ textAlign: 'center', paddingTop: 'var(--space-8)' }}>
+              <p style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 'var(--text-label)', letterSpacing: 'var(--tracking-loose)', textTransform: 'uppercase', color: 'var(--color-text-dim)' }}>
+                {customFoods.length === 0 ? 'NO CUSTOM FOODS YET' : 'NO MATCHES'}
+              </p>
+              {customFoods.length === 0 && (
+                <button onClick={() => setShowCreateForm(true)} style={{
+                  marginTop: 'var(--space-4)',
+                  background: 'none', border: '1px solid var(--color-border)',
+                  cursor: 'pointer', padding: '10px 20px',
+                  fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700,
+                  fontSize: '12px', letterSpacing: 'var(--tracking-wide)',
+                  textTransform: 'uppercase', color: 'var(--color-text)',
+                }}>
+                  + CREATE FIRST FOOD
+                </button>
+              )}
+            </div>
+          ) : (
+            <div style={{ borderTop: '1px solid var(--color-border-soft)' }}>
+              {filteredCustomFoods.map(cf => (
+                <button key={cf.id} onClick={() => openSheet(customToResult(cf))}
+                  style={foodRowStyle}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={foodNameStyle}>{cf.name}</div>
+                    {cf.brand && <div style={foodSubStyle}>{cf.brand}</div>}
+                    <div style={foodSubStyle}>
+                      per 100g · P {Math.round(cf.protein_per_100g)}g · C {Math.round(cf.carbs_per_100g)}g · F {Math.round(cf.fat_per_100g)}g
+                    </div>
+                  </div>
+                  <div style={{ flexShrink: 0, textAlign: 'right' }}>
+                    <span style={kcalStyle}>{Math.round(cf.kcal_per_100g)}</span>
+                    <div style={kcalLabelStyle}>kcal</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════════════════════
+          SEARCH VIEW
+      ════════════════════════════════════════════════════════════════════ */}
+      {view === 'search' && (
+        <>
+          {/* Barcode loading indicator */}
+          {barcodeLoading && (
+            <div style={{
+              textAlign: 'center', padding: 'var(--space-5)',
+              fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700,
+              fontSize: '12px', letterSpacing: 'var(--tracking-wide)',
+              textTransform: 'uppercase', color: 'var(--color-text-dim)',
+            }}>
+              LOOKING UP BARCODE...
+            </div>
+          )}
+
+          {/* Barcode not found */}
+          {barcodeNotFound && !barcodeLoading && (
+            <div style={{
+              border: '1px solid var(--color-border)',
+              padding: 'var(--space-5)',
+              marginBottom: 'var(--space-4)',
+              textAlign: 'center',
+            }}>
+              <p style={{
+                fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700,
+                fontSize: 'var(--text-label)', letterSpacing: 'var(--tracking-loose)',
+                textTransform: 'uppercase', color: 'var(--color-text-dim)',
+                marginBottom: 'var(--space-3)',
+              }}>
+                FOOD NOT FOUND
+              </p>
+              <div style={{ display: 'flex', gap: 'var(--space-2)', justifyContent: 'center' }}>
+                <button onClick={() => { setBarcodeNotFound(false); setScannerOpen(true) }}
+                  style={{
+                    padding: '8px 16px',
+                    background: 'none', border: '1px solid var(--color-border)',
+                    cursor: 'pointer',
+                    fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700,
+                    fontSize: '11px', letterSpacing: 'var(--tracking-wide)',
+                    textTransform: 'uppercase', color: 'var(--color-text)',
+                  }}>
+                  SCAN AGAIN
+                </button>
+                <button onClick={() => { setBarcodeNotFound(false); setView('quickAdd') }}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: 'var(--color-accent)', border: 'none',
+                    cursor: 'pointer',
+                    fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700,
+                    fontSize: '11px', letterSpacing: 'var(--tracking-wide)',
+                    textTransform: 'uppercase', color: '#fff',
+                  }}>
+                  ADD MANUALLY
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Search bar */}
+          <div style={{ position: 'relative', marginBottom: 'var(--space-3)' }}>
             <div style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-dim)' }}>
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                 <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.3" />
@@ -282,18 +689,75 @@ function LogPageInner() {
             />
             {searching && (
               <div style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)' }}>
-                <div style={{
-                  width: '14px', height: '14px',
-                  border: '1.5px solid var(--color-border)',
-                  borderTopColor: 'var(--color-accent)',
-                  borderRadius: '50%',
-                  animation: 'spin 0.7s linear infinite',
-                }} />
+                <div style={{ width: '14px', height: '14px', border: '1.5px solid var(--color-border)', borderTopColor: 'var(--color-accent)', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
               </div>
             )}
           </div>
 
-          {/* Quick actions (shown when not searching) */}
+          {/* Source tabs — visible when searching or has results */}
+          {(query.length >= 2 || results.length > 0) && (
+            <div style={{ display: 'flex', gap: '1px', background: 'var(--color-border)', marginBottom: 'var(--space-3)' }}>
+              {([
+                { key: 'all', label: 'ALL' },
+                { key: 'usda', label: 'USDA' },
+                { key: 'off', label: 'PACKAGED' },
+                { key: 'nutritionix', label: 'RESTAURANT' },
+              ] as { key: SourceFilter; label: string }[]).map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => handleSourceChange(key)}
+                  style={{
+                    flex: 1,
+                    padding: '8px 4px',
+                    background: source === key ? 'var(--color-accent)' : 'var(--color-surface)',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontFamily: "'Barlow Condensed', sans-serif",
+                    fontWeight: 700,
+                    fontSize: '9px',
+                    letterSpacing: '1px',
+                    textTransform: 'uppercase',
+                    color: source === key ? '#fff' : 'var(--color-text-dim)',
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Sort pills — visible when there are results */}
+          {displayList.length > 0 && !showRecent && (
+            <div style={{ display: 'flex', gap: 'var(--space-2)', marginBottom: 'var(--space-3)', flexWrap: 'wrap' }}>
+              {([
+                { key: 'relevance', label: 'RELEVANCE' },
+                { key: 'protein', label: 'MOST PROTEIN' },
+                { key: 'kcal_asc', label: 'FEWEST KCAL' },
+                { key: 'kcal_desc', label: 'MOST KCAL' },
+              ] as { key: SortOption; label: string }[]).map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => setSortBy(key)}
+                  style={{
+                    padding: '4px 10px',
+                    border: `1px solid ${sortBy === key ? 'var(--color-accent)' : 'var(--color-border)'}`,
+                    background: 'transparent',
+                    cursor: 'pointer',
+                    fontFamily: "'Barlow Condensed', sans-serif",
+                    fontWeight: 700,
+                    fontSize: '9px',
+                    letterSpacing: '1px',
+                    textTransform: 'uppercase',
+                    color: sortBy === key ? 'var(--color-accent)' : 'var(--color-text-dim)',
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Quick action grid — shown when idle */}
           {!query && !showRecent && (
             <div style={{
               display: 'grid',
@@ -303,9 +767,9 @@ function LogPageInner() {
               marginBottom: 'var(--space-5)',
             }}>
               {[
-                { label: 'SCAN BARCODE', icon: barcodeIcon, action: () => {} },
+                { label: 'SCAN BARCODE', icon: barcodeIcon, action: () => setScannerOpen(true) },
                 { label: 'QUICK ADD', icon: plusIcon, action: () => setView('quickAdd') },
-                { label: 'MY FOODS', icon: listIcon, action: () => {} },
+                { label: 'MY FOODS', icon: listIcon, action: () => setView('myFoods') },
                 { label: 'RECENT', icon: clockIcon, action: () => setShowRecent(true) },
               ].map(({ label, icon, action }) => (
                 <button
@@ -313,14 +777,10 @@ function LogPageInner() {
                   onClick={action}
                   style={{
                     background: 'var(--color-surface)',
-                    border: 'none',
-                    cursor: 'pointer',
+                    border: 'none', cursor: 'pointer',
                     padding: 'var(--space-5) var(--space-4)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 'var(--space-2)',
-                    alignItems: 'flex-start',
-                    textAlign: 'left',
+                    display: 'flex', flexDirection: 'column',
+                    gap: 'var(--space-2)', alignItems: 'flex-start', textAlign: 'left',
                   }}
                 >
                   <div style={{ color: 'var(--color-text-dim)' }}>{icon}</div>
@@ -342,95 +802,35 @@ function LogPageInner() {
           {/* Recent header */}
           {showRecent && !query && (
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-3)' }}>
-              <span style={{
-                fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700,
-                fontSize: 'var(--text-label)', letterSpacing: 'var(--tracking-loose)',
-                textTransform: 'uppercase', color: 'var(--color-text)',
-              }}>RECENT</span>
-              <button onClick={() => setShowRecent(false)} style={{
-                background: 'none', border: 'none', cursor: 'pointer',
-                color: 'var(--color-text-dim)', fontFamily: "'Barlow Condensed', sans-serif",
-                fontWeight: 700, fontSize: '10px', letterSpacing: 'var(--tracking-wide)',
-                textTransform: 'uppercase',
-              }}>BACK</button>
+              <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 'var(--text-label)', letterSpacing: 'var(--tracking-loose)', textTransform: 'uppercase', color: 'var(--color-text)' }}>
+                RECENT
+              </span>
+              <button onClick={() => setShowRecent(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-dim)', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '10px', letterSpacing: 'var(--tracking-wide)', textTransform: 'uppercase' }}>
+                BACK
+              </button>
             </div>
           )}
 
-          {/* Results / Recent list */}
+          {/* Results list */}
           {displayList.length > 0 && (
             <div style={{ borderTop: '1px solid var(--color-border-soft)' }}>
               {displayList.map(food => (
-                <button
-                  key={food.id}
-                  onClick={() => openSheet(food)}
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    width: '100%',
-                    padding: '12px 0',
-                    background: 'none',
-                    border: 'none',
-                    borderBottom: '1px solid var(--color-border-soft)',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    gap: 'var(--space-3)',
-                  }}
-                >
+                <button key={food.id} onClick={() => openSheet(food)} style={foodRowStyle}>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{
-                      fontFamily: "'Barlow', sans-serif",
-                      fontWeight: 500,
-                      fontSize: 'var(--text-body)',
-                      color: 'var(--color-text)',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}>
-                      {food.name}
-                    </div>
-                    {food.brand && (
-                      <div style={{
-                        fontFamily: "'Barlow', sans-serif",
-                        fontSize: 'var(--text-micro)',
-                        color: 'var(--color-text-dim)',
-                        marginTop: '1px',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                      }}>
-                        {food.brand}
-                      </div>
-                    )}
-                    <div style={{
-                      fontFamily: "'Barlow', sans-serif",
-                      fontSize: 'var(--text-micro)',
-                      color: 'var(--color-text-dim)',
-                      marginTop: '2px',
-                    }}>
+                    <div style={foodNameStyle}>{food.name}</div>
+                    {food.brand && <div style={foodSubStyle}>{food.brand}</div>}
+                    <div style={{ ...foodSubStyle, marginTop: '2px' }}>
                       per 100g · P {Math.round(food.proteinPer100g)}g · C {Math.round(food.carbsPer100g)}g · F {Math.round(food.fatPer100g)}g
+                      {food.source !== 'usda' && (
+                        <span style={{ marginLeft: '6px', color: 'var(--color-accent)', fontWeight: 700, fontSize: '8px' }}>
+                          {sourceBadge(food.source)}
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div style={{ flexShrink: 0, textAlign: 'right' }}>
-                    <span style={{
-                      fontFamily: "'Bebas Neue', sans-serif",
-                      fontSize: '22px',
-                      letterSpacing: 'var(--tracking-tight)',
-                      color: 'var(--color-text)',
-                      lineHeight: 1,
-                    }}>
-                      {Math.round(food.kcalPer100g)}
-                    </span>
-                    <div style={{
-                      fontFamily: "'Barlow Condensed', sans-serif",
-                      fontWeight: 700,
-                      fontSize: '8px',
-                      letterSpacing: '1px',
-                      textTransform: 'uppercase',
-                      color: 'var(--color-text-dim)',
-                    }}>
-                      kcal
-                    </div>
+                    <span style={kcalStyle}>{Math.round(food.kcalPer100g)}</span>
+                    <div style={kcalLabelStyle}>kcal</div>
                   </div>
                 </button>
               ))}
@@ -438,34 +838,13 @@ function LogPageInner() {
           )}
 
           {/* Empty search state */}
-          {query.length >= 2 && !searching && results.length === 0 && (
+          {query.length >= 2 && !searching && filteredResults.length === 0 && (
             <div style={{ paddingTop: 'var(--space-8)', textAlign: 'center' }}>
-              <p style={{
-                fontFamily: "'Barlow Condensed', sans-serif",
-                fontWeight: 700,
-                fontSize: 'var(--text-label)',
-                letterSpacing: 'var(--tracking-loose)',
-                textTransform: 'uppercase',
-                color: 'var(--color-text-dim)',
-              }}>
-                NO RESULTS FOR "{query.toUpperCase()}"
+              <p style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 'var(--text-label)', letterSpacing: 'var(--tracking-loose)', textTransform: 'uppercase', color: 'var(--color-text-dim)' }}>
+                NO RESULTS FOR &quot;{query.toUpperCase()}&quot;
               </p>
-              <button
-                onClick={() => setView('quickAdd')}
-                style={{
-                  marginTop: 'var(--space-4)',
-                  background: 'none',
-                  border: '1px solid var(--color-border)',
-                  cursor: 'pointer',
-                  padding: '10px 20px',
-                  fontFamily: "'Barlow Condensed', sans-serif",
-                  fontWeight: 700,
-                  fontSize: '12px',
-                  letterSpacing: 'var(--tracking-wide)',
-                  textTransform: 'uppercase',
-                  color: 'var(--color-text)',
-                }}
-              >
+              <button onClick={() => setView('quickAdd')}
+                style={{ marginTop: 'var(--space-4)', background: 'none', border: '1px solid var(--color-border)', cursor: 'pointer', padding: '10px 20px', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '12px', letterSpacing: 'var(--tracking-wide)', textTransform: 'uppercase', color: 'var(--color-text)' }}>
                 + QUICK ADD MANUALLY
               </button>
             </div>
@@ -473,21 +852,18 @@ function LogPageInner() {
         </>
       )}
 
-      {/* Backdrop */}
+      {/* ── Backdrop ── */}
       {selectedFood && (
-        <div
-          onClick={closeSheet}
-          style={{
-            position: 'fixed', inset: 0,
-            backgroundColor: 'rgba(0,0,0,0.6)',
-            zIndex: 200,
-            opacity: sheetVisible ? 1 : 0,
-            transition: 'opacity 0.3s ease',
-          }}
-        />
+        <div onClick={closeSheet} style={{
+          position: 'fixed', inset: 0,
+          backgroundColor: 'rgba(0,0,0,0.6)',
+          zIndex: 200,
+          opacity: sheetVisible ? 1 : 0,
+          transition: 'opacity 0.3s ease',
+        }} />
       )}
 
-      {/* Food detail bottom sheet */}
+      {/* ── Bottom sheet ── */}
       {selectedFood && (
         <div style={{
           position: 'fixed',
@@ -500,36 +876,19 @@ function LogPageInner() {
           transform: sheetVisible ? 'translateY(0)' : 'translateY(100%)',
           transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         }}>
-          {/* Food name */}
           <div style={{ marginBottom: 'var(--space-5)' }}>
-            <div style={{
-              fontFamily: "'Barlow', sans-serif",
-              fontWeight: 600,
-              fontSize: '14px',
-              color: 'var(--color-text)',
-              marginBottom: '2px',
-            }}>
+            <div style={{ fontFamily: "'Barlow', sans-serif", fontWeight: 600, fontSize: '14px', color: 'var(--color-text)', marginBottom: '2px' }}>
               {selectedFood.name}
             </div>
             {selectedFood.brand && (
-              <div style={{
-                fontFamily: "'Barlow', sans-serif",
-                fontSize: 'var(--text-micro)',
-                color: 'var(--color-text-dim)',
-              }}>
+              <div style={{ fontFamily: "'Barlow', sans-serif", fontSize: 'var(--text-micro)', color: 'var(--color-text-dim)' }}>
                 {selectedFood.brand}
               </div>
             )}
           </div>
 
-          {/* Live macro preview */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)',
-            gap: '1px',
-            background: 'var(--color-border)',
-            marginBottom: 'var(--space-5)',
-          }}>
+          {/* Live macro preview grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1px', background: 'var(--color-border)', marginBottom: 'var(--space-5)' }}>
             {[
               { label: 'KCAL', value: previewKcal, color: 'var(--color-text)' },
               { label: 'PROTEIN', value: previewProtein, color: 'var(--color-macro-protein)' },
@@ -537,74 +896,39 @@ function LogPageInner() {
               { label: 'FAT', value: previewFat, color: 'var(--color-macro-fat)' },
             ].map(({ label, value, color }) => (
               <div key={label} style={{ background: 'var(--color-bg)', padding: '10px 8px' }}>
-                <div style={{
-                  fontFamily: "'Bebas Neue', sans-serif",
-                  fontSize: '20px',
-                  letterSpacing: 'var(--tracking-tight)',
-                  color,
-                  lineHeight: 1,
-                }}>
+                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '20px', letterSpacing: 'var(--tracking-tight)', color, lineHeight: 1 }}>
                   {value}
                 </div>
-                <div style={{
-                  fontFamily: "'Barlow Condensed', sans-serif",
-                  fontWeight: 700,
-                  fontSize: '8px',
-                  letterSpacing: '1px',
-                  textTransform: 'uppercase',
-                  color: 'var(--color-text-dim)',
-                  marginTop: '2px',
-                }}>
+                <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '8px', letterSpacing: '1px', textTransform: 'uppercase', color: 'var(--color-text-dim)', marginTop: '2px' }}>
                   {label}
                 </div>
               </div>
             ))}
           </div>
 
-          {/* Serving size input */}
+          {/* Serving input */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-4)' }}>
             <div style={{ flex: 1 }}>
-              <div style={{
-                fontFamily: "'Barlow Condensed', sans-serif",
-                fontWeight: 700,
-                fontSize: '9px',
-                letterSpacing: 'var(--tracking-wide)',
-                textTransform: 'uppercase',
-                color: 'var(--color-text-dim)',
-                marginBottom: 'var(--space-1)',
-              }}>
+              <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '9px', letterSpacing: 'var(--tracking-wide)', textTransform: 'uppercase', color: 'var(--color-text-dim)', marginBottom: 'var(--space-1)' }}>
                 SERVING SIZE
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
                 <input
-                  type="number"
-                  value={servingG}
+                  type="number" value={servingG}
                   onChange={e => setServingG(e.target.value)}
                   min="1"
                   style={{ ...inputStyle, flex: 1 }}
                 />
-                <span style={{
-                  fontFamily: "'Barlow Condensed', sans-serif",
-                  fontWeight: 700,
-                  fontSize: '12px',
-                  color: 'var(--color-text-dim)',
-                  textTransform: 'uppercase',
-                }}>
-                  G
-                </span>
+                <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '12px', color: 'var(--color-text-dim)', textTransform: 'uppercase' }}>G</span>
               </div>
             </div>
           </div>
 
-          {/* Meal selector */}
           <MealSelector selected={selectedMeal} onChange={setSelectedMeal} />
 
-          {/* LOG button */}
-          <button
-            onClick={handleLog}
+          <button onClick={handleLog}
             disabled={logging || !servingG || parseFloat(servingG) <= 0}
-            style={logBtnStyle(logging)}
-          >
+            style={logBtnStyle(logging || !servingG || parseFloat(servingG) <= 0)}>
             {logging ? 'LOGGING...' : 'LOG'}
           </button>
         </div>
@@ -619,39 +943,26 @@ function LogPageInner() {
   )
 }
 
+// ── Sub-components ────────────────────────────────────────────────────────────
+
 function MealSelector({ selected, onChange }: { selected: MealType; onChange: (m: MealType) => void }) {
   return (
     <div style={{ marginBottom: 'var(--space-4)' }}>
-      <div style={{
-        fontFamily: "'Barlow Condensed', sans-serif",
-        fontWeight: 700,
-        fontSize: '9px',
-        letterSpacing: 'var(--tracking-wide)',
-        textTransform: 'uppercase',
-        color: 'var(--color-text-dim)',
-        marginBottom: 'var(--space-2)',
-      }}>
+      <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '9px', letterSpacing: 'var(--tracking-wide)', textTransform: 'uppercase', color: 'var(--color-text-dim)', marginBottom: 'var(--space-2)' }}>
         LOG TO
       </div>
       <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
         {MEAL_TYPES.map(type => (
-          <button
-            key={type}
-            onClick={() => onChange(type)}
-            style={{
-              padding: '5px 10px',
-              border: `1px solid ${selected === type ? 'var(--color-accent)' : 'var(--color-border)'}`,
-              backgroundColor: selected === type ? 'var(--color-accent)' : 'transparent',
-              color: selected === type ? '#fff' : 'var(--color-text-dim)',
-              cursor: 'pointer',
-              borderRadius: 0,
-              fontFamily: "'Barlow Condensed', sans-serif",
-              fontWeight: 700,
-              fontSize: '9px',
-              letterSpacing: '1px',
-              textTransform: 'uppercase',
-            }}
-          >
+          <button key={type} onClick={() => onChange(type)} style={{
+            padding: '5px 10px',
+            border: `1px solid ${selected === type ? 'var(--color-accent)' : 'var(--color-border)'}`,
+            backgroundColor: selected === type ? 'var(--color-accent)' : 'transparent',
+            color: selected === type ? '#fff' : 'var(--color-text-dim)',
+            cursor: 'pointer',
+            borderRadius: 0,
+            fontFamily: "'Barlow Condensed', sans-serif",
+            fontWeight: 700, fontSize: '9px', letterSpacing: '1px', textTransform: 'uppercase',
+          }}>
             {MEAL_LABELS[type]}
           </button>
         ))}
@@ -659,6 +970,8 @@ function MealSelector({ selected, onChange }: { selected: MealType; onChange: (m
     </div>
   )
 }
+
+// ── Shared styles ─────────────────────────────────────────────────────────────
 
 const inputStyle: React.CSSProperties = {
   width: '100%',
@@ -691,7 +1004,59 @@ function logBtnStyle(disabled: boolean): React.CSSProperties {
   }
 }
 
-// SVG icons
+const foodRowStyle: React.CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  width: '100%',
+  padding: '12px 0',
+  background: 'none',
+  border: 'none',
+  borderBottom: '1px solid var(--color-border-soft)',
+  cursor: 'pointer',
+  textAlign: 'left',
+  gap: 'var(--space-3)',
+}
+
+const foodNameStyle: React.CSSProperties = {
+  fontFamily: "'Barlow', sans-serif",
+  fontWeight: 500,
+  fontSize: 'var(--text-body)',
+  color: 'var(--color-text)',
+  whiteSpace: 'nowrap',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+}
+
+const foodSubStyle: React.CSSProperties = {
+  fontFamily: "'Barlow', sans-serif",
+  fontSize: 'var(--text-micro)',
+  color: 'var(--color-text-dim)',
+  marginTop: '1px',
+  whiteSpace: 'nowrap',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+}
+
+const kcalStyle: React.CSSProperties = {
+  fontFamily: "'Bebas Neue', sans-serif",
+  fontSize: '22px',
+  letterSpacing: 'var(--tracking-tight)',
+  color: 'var(--color-text)',
+  lineHeight: 1,
+}
+
+const kcalLabelStyle: React.CSSProperties = {
+  fontFamily: "'Barlow Condensed', sans-serif",
+  fontWeight: 700,
+  fontSize: '8px',
+  letterSpacing: '1px',
+  textTransform: 'uppercase',
+  color: 'var(--color-text-dim)',
+}
+
+// ── SVG Icons ─────────────────────────────────────────────────────────────────
+
 const barcodeIcon = (
   <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
     <rect x="2" y="4" width="2" height="12" fill="currentColor" />
@@ -719,6 +1084,8 @@ const clockIcon = (
     <path d="M10 6V10L13 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" />
   </svg>
 )
+
+// ── Suspense wrapper ──────────────────────────────────────────────────────────
 
 export default function LogPage() {
   return (

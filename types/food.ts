@@ -1,6 +1,7 @@
 export interface FoodResult {
   id: string
-  source: 'usda' | 'off'
+  /** usda = USDA FoodData Central, off = Open Food Facts, nutritionix = Nutritionix, custom = custom/recipe food */
+  source: 'usda' | 'off' | 'nutritionix' | 'custom'
   name: string
   brand?: string
   kcalPer100g: number
@@ -9,4 +10,6 @@ export interface FoodResult {
   fatPer100g: number
   fiberPer100g: number
   servingG: number
+  /** Set when source === 'custom'; used to populate custom_food_id on food_logs */
+  customFoodId?: string
 }
