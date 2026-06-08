@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import UnitPicker, { type Unit, toGrams } from '@/components/ui/UnitPicker'
 import type { FoodResult } from '@/types/food'
 
 interface Ingredient {
@@ -38,7 +39,8 @@ export default function RecipePage() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [pendingFood, setPendingFood] = useState<FoodResult | null>(null)
-  const [pendingGrams, setPendingGrams] = useState('100')
+  const [pendingGrams, setPendingGrams] = useState('1')
+  const [pendingUnit, setPendingUnit] = useState<Unit>('serving')
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const search = useCallback(async (q: string) => {
@@ -60,18 +62,26 @@ export default function RecipePage() {
 
   function selectFood(food: FoodResult) {
     setPendingFood(food)
-    setPendingGrams(String(food.servingG))
+    // Default to 1 serving if the food has a non-trivial serving size, else 100g
+    if (food.servingG && food.servingG !== 100) {
+      setPendingGrams('1')
+      setPendingUnit('serving')
+    } else {
+      setPendingGrams('100')
+      setPendingUnit('g')
+    }
     setQuery('')
     setResults([])
   }
 
   function addIngredient() {
     if (!pendingFood) return
-    const g = parseFloat(pendingGrams)
+    const g = toGrams(parseFloat(pendingGrams) || 0, pendingUnit, pendingFood.servingG)
     if (!g || g <= 0) return
-    setIngredients(prev => [...prev, { food: pendingFood, grams: g }])
+    setIngredients(prev => [...prev, { food: pendingFood!, grams: g }])
     setPendingFood(null)
-    setPendingGrams('100')
+    setPendingGrams('1')
+    setPendingUnit('serving')
   }
 
   function removeIngredient(i: number) {
@@ -192,75 +202,71 @@ export default function RecipePage() {
       {pendingFood ? (
         /* Pending food — set grams then confirm */
         <div style={{
-          display: 'flex',
-          gap: 'var(--space-3)',
-          alignItems: 'center',
           padding: 'var(--space-3) var(--space-4)',
           background: 'var(--color-surface)',
           border: '1px solid var(--color-accent)',
           marginBottom: 'var(--space-3)',
         }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{
-              fontFamily: "'Barlow', sans-serif",
-              fontWeight: 500,
-              fontSize: '12px',
-              color: 'var(--color-text)',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}>
-              {pendingFood.name}
+          {/* Food name + kcal preview */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-3)' }}>
+            <div style={{ flex: 1, minWidth: 0, paddingRight: 'var(--space-3)' }}>
+              <div style={{
+                fontFamily: "'Barlow', sans-serif",
+                fontWeight: 500,
+                fontSize: '12px',
+                color: 'var(--color-text)',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}>
+                {pendingFood.name}
+              </div>
+              <div style={{
+                fontFamily: "'Barlow', sans-serif",
+                fontSize: '9px',
+                color: 'var(--color-text-dim)',
+                marginTop: '1px',
+              }}>
+                {Math.round(macro(pendingFood.kcalPer100g, toGrams(parseFloat(pendingGrams) || 0, pendingUnit, pendingFood.servingG)))} kcal
+              </div>
             </div>
-            <div style={{
-              fontFamily: "'Barlow', sans-serif",
-              fontSize: '9px',
-              color: 'var(--color-text-dim)',
-              marginTop: '1px',
-            }}>
-              {Math.round(macro(pendingFood.kcalPer100g, parseFloat(pendingGrams) || 0))} kcal
-            </div>
+            <button
+              onClick={() => setPendingFood(null)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-dim)', padding: '4px', flexShrink: 0 }}
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M2 2L12 12M12 2L2 12" stroke="currentColor" strokeWidth="1.2" />
+              </svg>
+            </button>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexShrink: 0 }}>
-            <input
-              type="number"
-              value={pendingGrams}
-              onChange={e => setPendingGrams(e.target.value)}
-              style={{ ...inputStyle, width: '64px', padding: '8px', textAlign: 'center' }}
-              min="1"
-            />
-            <span style={{
-              fontFamily: "'Barlow Condensed', sans-serif",
-              fontWeight: 700,
-              fontSize: '11px',
-              color: 'var(--color-text-dim)',
-            }}>G</span>
-          </div>
+          {/* Unit picker */}
+          <UnitPicker
+            qty={pendingGrams}
+            unit={pendingUnit}
+            onQtyChange={setPendingGrams}
+            onUnitChange={setPendingUnit}
+            showServing={true}
+            servingG={pendingFood.servingG}
+          />
+          {/* Add button */}
           <button
             onClick={addIngredient}
             style={{
+              width: '100%',
+              marginTop: 'var(--space-3)',
               background: 'var(--color-accent)',
               border: 'none',
               cursor: 'pointer',
-              padding: '8px 14px',
+              padding: '10px',
               color: '#fff',
               fontFamily: "'Barlow Condensed', sans-serif",
               fontWeight: 700,
-              fontSize: '12px',
+              fontSize: '13px',
               letterSpacing: '0.1em',
               textTransform: 'uppercase',
-              flexShrink: 0,
             }}
           >
             ADD
-          </button>
-          <button
-            onClick={() => setPendingFood(null)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-dim)', padding: '4px' }}
-          >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <path d="M2 2L12 12M12 2L2 12" stroke="currentColor" strokeWidth="1.2" />
-            </svg>
           </button>
         </div>
       ) : (

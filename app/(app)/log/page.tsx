@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import BarcodeScanner from '@/components/ui/BarcodeScanner'
+import UnitPicker, { type Unit, toGrams } from '@/components/ui/UnitPicker'
 import type { FoodResult } from '@/types/food'
 import type { MealType } from '@/types'
 
@@ -90,7 +91,8 @@ function LogPageInner() {
 
   // Bottom sheet state
   const [selectedFood, setSelectedFood] = useState<FoodResult | null>(null)
-  const [servingG, setServingG] = useState('100')
+  const [servingQty, setServingQty] = useState('1')
+  const [servingUnit, setServingUnit] = useState<Unit>('serving')
   const [sheetVisible, setSheetVisible] = useState(false)
   const [selectedMeal, setSelectedMeal] = useState<MealType>(initialMeal)
   const [logging, setLogging] = useState(false)
@@ -102,6 +104,8 @@ function LogPageInner() {
 
   // Quick add state
   const [quickAdd, setQuickAdd] = useState({ name: '', kcal: '', protein: '', carbs: '', fat: '' })
+  const [qaQty, setQaQty] = useState('100')
+  const [qaUnit, setQaUnit] = useState<Unit>('g')
 
   // My Foods state
   const [customFoods, setCustomFoods] = useState<CustomFood[]>([])
@@ -234,7 +238,14 @@ function LogPageInner() {
 
   function openSheet(food: FoodResult) {
     setSelectedFood(food)
-    setServingG(String(food.servingG))
+    // Default to 1 serving when the food has a meaningful serving size, otherwise 100g
+    if (food.servingG && food.servingG !== 100) {
+      setServingQty('1')
+      setServingUnit('serving')
+    } else {
+      setServingQty('100')
+      setServingUnit('g')
+    }
     setSheetVisible(false)
     requestAnimationFrame(() => setSheetVisible(true))
   }
@@ -248,8 +259,8 @@ function LogPageInner() {
 
   async function handleLog() {
     if (!selectedFood || logging) return
-    const g = parseFloat(servingG)
-    if (!g || g <= 0) return
+    const actualG = toGrams(parseFloat(servingQty) || 0, servingUnit, selectedFood.servingG)
+    if (actualG <= 0) return
     setLogging(true)
 
     const supabase = createClient()
@@ -263,18 +274,18 @@ function LogPageInner() {
       logged_date: today,
       meal_type: selectedMeal,
       food_name: selectedFood.name,
-      serving_g: g,
-      kcal: m(selectedFood.kcalPer100g, g),
-      protein_g: m(selectedFood.proteinPer100g, g),
-      carbs_g: m(selectedFood.carbsPer100g, g),
-      fat_g: m(selectedFood.fatPer100g, g),
-      fiber_g: m(selectedFood.fiberPer100g, g),
+      serving_g: Math.round(actualG * 10) / 10,
+      kcal: m(selectedFood.kcalPer100g, actualG),
+      protein_g: m(selectedFood.proteinPer100g, actualG),
+      carbs_g: m(selectedFood.carbsPer100g, actualG),
+      fat_g: m(selectedFood.fatPer100g, actualG),
+      fiber_g: m(selectedFood.fiberPer100g, actualG),
       usda_food_id: selectedFood.source === 'usda' ? selectedFood.id : null,
       off_food_id: selectedFood.source === 'off' ? selectedFood.id : null,
       custom_food_id: selectedFood.customFoodId ?? null,
     })
 
-    router.back() // ISSUE 1 — always return to previous screen
+    router.back()
   }
 
   async function handleQuickAdd() {
@@ -287,20 +298,21 @@ function LogPageInner() {
     if (!user) { setLogging(false); return }
 
     const today = new Date().toISOString().split('T')[0]
+    const actualG = toGrams(parseFloat(qaQty) || 100, qaUnit)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (supabase.from('food_logs') as any).insert({
       user_id: user.id,
       logged_date: today,
       meal_type: selectedMeal,
       food_name: quickAdd.name,
-      serving_g: 100,
+      serving_g: Math.round(actualG * 10) / 10,
       kcal,
       protein_g: parseFloat(quickAdd.protein) || 0,
       carbs_g: parseFloat(quickAdd.carbs) || 0,
       fat_g: parseFloat(quickAdd.fat) || 0,
     })
 
-    router.back() // ISSUE 1
+    router.back()
   }
 
   async function handleCreateCustomFood() {
@@ -334,11 +346,11 @@ function LogPageInner() {
 
   // ── Preview macros ────────────────────────────────────────────────────────
 
-  const g = parseFloat(servingG) || 0
-  const previewKcal = selectedFood ? m(selectedFood.kcalPer100g, g) : 0
-  const previewProtein = selectedFood ? m(selectedFood.proteinPer100g, g) : 0
-  const previewCarbs = selectedFood ? m(selectedFood.carbsPer100g, g) : 0
-  const previewFat = selectedFood ? m(selectedFood.fatPer100g, g) : 0
+  const previewG = toGrams(parseFloat(servingQty) || 0, servingUnit, selectedFood?.servingG ?? 100)
+  const previewKcal = selectedFood ? m(selectedFood.kcalPer100g, previewG) : 0
+  const previewProtein = selectedFood ? m(selectedFood.proteinPer100g, previewG) : 0
+  const previewCarbs = selectedFood ? m(selectedFood.carbsPer100g, previewG) : 0
+  const previewFat = selectedFood ? m(selectedFood.fatPer100g, previewG) : 0
 
   // ── Filtered custom foods for My Foods view ───────────────────────────────
   const filteredCustomFoods = myFoodsQuery.length < 2
@@ -475,6 +487,18 @@ function LogPageInner() {
                 onChange={e => setQuickAdd(q => ({ ...q, [macro]: e.target.value }))}
                 style={inputStyle} />
             ))}
+          </div>
+          <div>
+            <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '9px', letterSpacing: 'var(--tracking-wide)', textTransform: 'uppercase', color: 'var(--color-text-dim)', marginBottom: 'var(--space-2)' }}>
+              SERVING SIZE
+            </div>
+            <UnitPicker
+              qty={qaQty}
+              unit={qaUnit}
+              onQtyChange={setQaQty}
+              onUnitChange={setQaUnit}
+              showServing={false}
+            />
           </div>
           <MealSelector selected={selectedMeal} onChange={setSelectedMeal} />
           <button onClick={handleQuickAdd} disabled={logging || !quickAdd.name || !quickAdd.kcal}
@@ -907,28 +931,25 @@ function LogPageInner() {
           </div>
 
           {/* Serving input */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-4)' }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '9px', letterSpacing: 'var(--tracking-wide)', textTransform: 'uppercase', color: 'var(--color-text-dim)', marginBottom: 'var(--space-1)' }}>
-                SERVING SIZE
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-                <input
-                  type="number" value={servingG}
-                  onChange={e => setServingG(e.target.value)}
-                  min="1"
-                  style={{ ...inputStyle, flex: 1 }}
-                />
-                <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '12px', color: 'var(--color-text-dim)', textTransform: 'uppercase' }}>G</span>
-              </div>
+          <div style={{ marginBottom: 'var(--space-4)' }}>
+            <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '9px', letterSpacing: 'var(--tracking-wide)', textTransform: 'uppercase', color: 'var(--color-text-dim)', marginBottom: 'var(--space-2)' }}>
+              SERVING SIZE
             </div>
+            <UnitPicker
+              qty={servingQty}
+              unit={servingUnit}
+              onQtyChange={setServingQty}
+              onUnitChange={setServingUnit}
+              showServing={true}
+              servingG={selectedFood?.servingG ?? 100}
+            />
           </div>
 
           <MealSelector selected={selectedMeal} onChange={setSelectedMeal} />
 
           <button onClick={handleLog}
-            disabled={logging || !servingG || parseFloat(servingG) <= 0}
-            style={logBtnStyle(logging || !servingG || parseFloat(servingG) <= 0)}>
+            disabled={logging || previewG <= 0}
+            style={logBtnStyle(logging || previewG <= 0)}>
             {logging ? 'LOGGING...' : 'LOG'}
           </button>
         </div>
