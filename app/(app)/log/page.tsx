@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import BarcodeScanner from '@/components/ui/BarcodeScanner'
+import WeightEntry from '@/components/forms/WeightEntry'
 import UnitPicker, { type Unit, toGrams } from '@/components/ui/UnitPicker'
 import type { FoodResult } from '@/types/food'
 import type { MealType } from '@/types'
@@ -98,6 +99,9 @@ function LogPageInner() {
   const [sheetVisible, setSheetVisible] = useState(false)
   const [selectedMeal, setSelectedMeal] = useState<MealType>(initialMeal)
   const [logging, setLogging] = useState(false)
+
+  // Weight entry state
+  const [showWeightEntry, setShowWeightEntry] = useState(false)
 
   // Barcode state
   const [scannerOpen, setScannerOpen] = useState(false)
@@ -374,6 +378,19 @@ function LogPageInner() {
 
   return (
     <div className="screen" style={{ paddingTop: 0 }}>
+
+      {/* ── Weight entry modal ── */}
+      {showWeightEntry && (
+        <WeightEntry
+          onClose={() => setShowWeightEntry(false)}
+          onSaved={async (shouldRecalculate) => {
+            setShowWeightEntry(false)
+            if (shouldRecalculate) {
+              fetch('/api/tdee/calculate', { method: 'POST' }).catch(() => {})
+            }
+          }}
+        />
+      )}
 
       {/* ── Barcode scanner modal ── */}
       {scannerOpen && (
@@ -783,43 +800,69 @@ function LogPageInner() {
 
           {/* Quick action grid — shown when idle */}
           {!query && !showRecent && (
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: '1px',
-              background: 'var(--color-border)',
-              marginBottom: 'var(--space-5)',
-            }}>
-              {[
-                { label: 'SCAN BARCODE', icon: barcodeIcon, action: () => setScannerOpen(true) },
-                { label: 'QUICK ADD', icon: plusIcon, action: () => setView('quickAdd') },
-                { label: 'MY FOODS', icon: listIcon, action: () => setView('myFoods') },
-                { label: 'RECENT', icon: clockIcon, action: () => setShowRecent(true) },
-              ].map(({ label, icon, action }) => (
-                <button
-                  key={label}
-                  onClick={action}
-                  style={{
-                    background: 'var(--color-surface)',
-                    border: 'none', cursor: 'pointer',
-                    padding: 'var(--space-5) var(--space-4)',
-                    display: 'flex', flexDirection: 'column',
-                    gap: 'var(--space-2)', alignItems: 'flex-start', textAlign: 'left',
-                  }}
-                >
-                  <div style={{ color: 'var(--color-text-dim)' }}>{icon}</div>
-                  <span style={{
-                    fontFamily: "'Barlow Condensed', sans-serif",
-                    fontWeight: 700,
-                    fontSize: 'var(--text-label)',
-                    letterSpacing: 'var(--tracking-wide)',
-                    textTransform: 'uppercase',
-                    color: 'var(--color-text)',
-                  }}>
-                    {label}
-                  </span>
-                </button>
-              ))}
+            <div style={{ marginBottom: 'var(--space-5)' }}>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: '1px',
+                background: 'var(--color-border)',
+                marginBottom: '1px',
+              }}>
+                {[
+                  { label: 'SCAN BARCODE', icon: barcodeIcon, action: () => setScannerOpen(true) },
+                  { label: 'QUICK ADD', icon: plusIcon, action: () => setView('quickAdd') },
+                  { label: 'MY FOODS', icon: listIcon, action: () => setView('myFoods') },
+                  { label: 'RECENT', icon: clockIcon, action: () => setShowRecent(true) },
+                ].map(({ label, icon, action }) => (
+                  <button
+                    key={label}
+                    onClick={action}
+                    style={{
+                      background: 'var(--color-surface)',
+                      border: 'none', cursor: 'pointer',
+                      padding: 'var(--space-5) var(--space-4)',
+                      display: 'flex', flexDirection: 'column',
+                      gap: 'var(--space-2)', alignItems: 'flex-start', textAlign: 'left',
+                    }}
+                  >
+                    <div style={{ color: 'var(--color-text-dim)' }}>{icon}</div>
+                    <span style={{
+                      fontFamily: "'Barlow Condensed', sans-serif",
+                      fontWeight: 700,
+                      fontSize: 'var(--text-label)',
+                      letterSpacing: 'var(--tracking-wide)',
+                      textTransform: 'uppercase',
+                      color: 'var(--color-text)',
+                    }}>
+                      {label}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              {/* Full-width LOG WEIGHT tile */}
+              <button
+                onClick={() => setShowWeightEntry(true)}
+                style={{
+                  width: '100%',
+                  background: 'var(--color-surface)',
+                  border: 'none', cursor: 'pointer',
+                  padding: 'var(--space-5) var(--space-4)',
+                  display: 'flex', flexDirection: 'row',
+                  alignItems: 'center', gap: 'var(--space-3)', textAlign: 'left',
+                }}
+              >
+                <div style={{ color: 'var(--color-text-dim)' }}>{scaleIcon}</div>
+                <span style={{
+                  fontFamily: "'Barlow Condensed', sans-serif",
+                  fontWeight: 700,
+                  fontSize: 'var(--text-label)',
+                  letterSpacing: 'var(--tracking-wide)',
+                  textTransform: 'uppercase',
+                  color: 'var(--color-text)',
+                }}>
+                  LOG WEIGHT
+                </span>
+              </button>
             </div>
           )}
 
@@ -1103,6 +1146,13 @@ const clockIcon = (
   <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
     <circle cx="10" cy="10" r="7" stroke="currentColor" strokeWidth="1.5" />
     <path d="M10 6V10L13 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" />
+  </svg>
+)
+const scaleIcon = (
+  <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+    <path d="M3 16L5 8H15L17 16H3Z" stroke="currentColor" strokeWidth="1.5" />
+    <path d="M7 8C7 6 8 4 10 4C12 4 13 6 13 8" stroke="currentColor" strokeWidth="1.5" />
+    <path d="M10 4V2" stroke="currentColor" strokeWidth="1.5" />
   </svg>
 )
 
