@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useTodayLog } from '@/hooks/useTodayLog'
@@ -19,17 +19,58 @@ const MEALS: { type: MealType; label: string }[] = [
   { type: 'post_workout', label: 'POST WORKOUT' },
 ]
 
+// ── Date helpers ─────────────────────────────────────────────────────────────
+
+/** Returns YYYY-MM-DD in local timezone (avoids UTC offset bugs). */
+function localDateStr(d: Date = new Date()): string {
+  return (
+    d.getFullYear() +
+    '-' +
+    String(d.getMonth() + 1).padStart(2, '0') +
+    '-' +
+    String(d.getDate()).padStart(2, '0')
+  )
+}
+
+/** Shifts a YYYY-MM-DD string by `delta` days and returns the new date string. */
+function shiftDate(dateStr: string, delta: number): string {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const date = new Date(y, m - 1, d + delta)
+  return localDateStr(date)
+}
+
+/** Formats YYYY-MM-DD as "MON · 9 JUN" style. */
+function formatDateLabel(dateStr: string): string {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const date = new Date(y, m - 1, d)
+  return date
+    .toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' })
+    .toUpperCase()
+    .replace(',', ' ·')
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
 export default function TodayPage() {
   const router = useRouter()
+  const todayStr = localDateStr()
+
+  const [selectedDate, setSelectedDate] = useState(todayStr)
   const [animate, setAnimate] = useState(false)
   const [username, setUsername] = useState('')
-  const { logs, totals, deleteLog } = useTodayLog()
+
+  const isToday = selectedDate === todayStr
+  const isPastDate = selectedDate < todayStr
+
+  const { logs, totals, deleteLog } = useTodayLog(selectedDate)
   const tdee = useAdaptiveTDEE()
 
+  // Re-trigger ring + number animations whenever date changes
   useEffect(() => {
+    setAnimate(false)
     const t = setTimeout(() => setAnimate(true), 200)
     return () => clearTimeout(t)
-  }, [])
+  }, [selectedDate])
 
   useEffect(() => {
     const supabase = createClient()
@@ -38,19 +79,30 @@ export default function TodayPage() {
     })
   }, [])
 
-  const now = new Date()
-  const dateStr = now
-    .toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' })
-    .toUpperCase()
-    .replace(',', ' ·')
+  const goDay = useCallback((delta: number) => {
+    setSelectedDate(prev => {
+      const next = shiftDate(prev, delta)
+      // Never go past today
+      return next > todayStr ? todayStr : next
+    })
+  }, [todayStr])
 
+  const dateLabel = formatDateLabel(selectedDate)
   const eaten = Math.round(totals.kcal)
   const goal = Math.round(tdee.targetKcal)
   const remaining = goal - eaten
 
   return (
-    <div className="screen" style={{ paddingTop: 0 }}>
-      {/* Header */}
+    <div
+      className="screen"
+      style={{
+        paddingTop: 0,
+        // Explicit inline style ensures content clears the fixed tab bar
+        // regardless of CSS class loading order
+        paddingBottom: 'max(92px, calc(66px + env(safe-area-inset-bottom)))',
+      }}
+    >
+      {/* ── Header ──────────────────────────────────────────────────────── */}
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',
@@ -58,16 +110,110 @@ export default function TodayPage() {
         paddingTop: 'var(--space-6)',
         paddingBottom: 'var(--space-2)',
       }}>
-        <span style={{
-          fontFamily: "'Barlow Condensed', sans-serif",
-          fontWeight: 700,
-          fontSize: 'var(--text-label)',
-          letterSpacing: 'var(--tracking-loose)',
-          textTransform: 'uppercase',
-          color: 'var(--color-text-dim)',
-        }}>
-          {dateStr}
-        </span>
+
+        {/* Date navigator: ← [date] → */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+
+          {/* Left arrow — go back one day */}
+          <button
+            onClick={() => goDay(-1)}
+            aria-label="Previous day"
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '6px 4px',
+              color: 'var(--color-text-dim)',
+              display: 'flex',
+              alignItems: 'center',
+              lineHeight: 0,
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M9 2L4 7L9 12" stroke="currentColor" strokeWidth="1.5" />
+            </svg>
+          </button>
+
+          {/* Date text — tapping opens native date picker */}
+          <div style={{ position: 'relative', cursor: 'pointer' }}>
+            {/* Visible label */}
+            <div style={{ pointerEvents: 'none', lineHeight: 1 }}>
+              <span style={{
+                fontFamily: "'Barlow Condensed', sans-serif",
+                fontWeight: 700,
+                fontSize: 'var(--text-label)',
+                letterSpacing: 'var(--tracking-loose)',
+                textTransform: 'uppercase',
+                color: isPastDate ? 'var(--color-text-dim)' : 'var(--color-text)',
+                display: 'block',
+                lineHeight: 1,
+              }}>
+                {dateLabel}
+              </span>
+              {isPastDate && (
+                <span style={{
+                  fontFamily: "'Barlow', sans-serif",
+                  fontWeight: 500,
+                  fontSize: '8px',
+                  letterSpacing: '0.06em',
+                  textTransform: 'uppercase',
+                  color: 'var(--color-accent)',
+                  display: 'block',
+                  marginTop: '3px',
+                  lineHeight: 1,
+                }}>
+                  EDITING PAST DAY
+                </span>
+              )}
+            </div>
+
+            {/* Invisible native date picker — covers the label above */}
+            <input
+              type="date"
+              max={todayStr}
+              value={selectedDate}
+              onChange={e => { if (e.target.value) setSelectedDate(e.target.value) }}
+              aria-label="Pick a date"
+              style={{
+                position: 'absolute',
+                inset: 0,
+                opacity: 0,
+                cursor: 'pointer',
+                width: '100%',
+                height: '100%',
+                zIndex: 1,
+                // Reset all browser default styling
+                border: 'none',
+                background: 'none',
+                padding: 0,
+              }}
+            />
+          </div>
+
+          {/* Right arrow — go forward one day (disabled on today) */}
+          <button
+            onClick={() => !isToday && goDay(1)}
+            aria-label="Next day"
+            aria-disabled={isToday}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: isToday ? 'default' : 'pointer',
+              padding: '6px 4px',
+              color: isToday ? 'var(--color-border)' : 'var(--color-text-dim)',
+              display: 'flex',
+              alignItems: 'center',
+              lineHeight: 0,
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M5 2L10 7L5 12" stroke="currentColor" strokeWidth="1.5" />
+            </svg>
+          </button>
+
+        </div>
+
+        {/* Username + avatar */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
           <span style={{
             fontFamily: "'Barlow Condensed', sans-serif",
@@ -98,9 +244,10 @@ export default function TodayPage() {
             </span>
           </div>
         </div>
+
       </div>
 
-      {/* Calorie hero */}
+      {/* ── Calorie hero ─────────────────────────────────────────────────── */}
       <CalorieHero
         remaining={remaining}
         goal={goal}
@@ -110,7 +257,7 @@ export default function TodayPage() {
         adaptationDetected={tdee.adaptationDetected}
       />
 
-      {/* Macro rings */}
+      {/* ── Macro rings ──────────────────────────────────────────────────── */}
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',
@@ -142,7 +289,7 @@ export default function TodayPage() {
         />
       </div>
 
-      {/* Today's log */}
+      {/* ── Daily log ────────────────────────────────────────────────────── */}
       <div>
         <div style={{
           display: 'flex',
@@ -159,7 +306,7 @@ export default function TodayPage() {
             textTransform: 'uppercase',
             color: 'var(--color-text)',
           }}>
-            TODAY'S LOG
+            {isToday ? "TODAY'S LOG" : dateLabel + ' LOG'}
           </span>
           {eaten > 0 && (
             <span style={{
@@ -179,7 +326,11 @@ export default function TodayPage() {
             mealType={type}
             label={label}
             items={logs.filter(l => l.meal_type === type)}
-            onAdd={mealType => router.push(`/log?meal=${mealType}`)}
+            onAdd={mealType => {
+              const params = new URLSearchParams({ meal: mealType })
+              if (!isToday) params.set('date', selectedDate)
+              router.push(`/log?${params.toString()}`)
+            }}
             onDelete={deleteLog}
           />
         ))}

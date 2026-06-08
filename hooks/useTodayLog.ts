@@ -15,29 +15,33 @@ interface UseTodayLogResult {
   refetch: () => Promise<void>
 }
 
-export function useTodayLog(): UseTodayLogResult {
+export function useTodayLog(date: string): UseTodayLogResult {
   const [logs, setLogs] = useState<FoodLog[]>([])
   const [loading, setLoading] = useState(true)
-
-  const today = new Date().toISOString().split('T')[0]
 
   const fetchLogs = useCallback(async () => {
     const supabase = createClient()
     const { data } = await supabase
       .from('food_logs')
       .select('*')
-      .eq('logged_date', today)
+      .eq('logged_date', date)
       .order('created_at', { ascending: true })
     setLogs(data ?? [])
     setLoading(false)
-  }, [today])
+  }, [date])
+
+  // Clear stale data immediately when date changes
+  useEffect(() => {
+    setLoading(true)
+    setLogs([])
+  }, [date])
 
   useEffect(() => {
     fetchLogs()
 
     const supabase = createClient()
     const channel = supabase
-      .channel(`food_logs_${today}`)
+      .channel(`food_logs_${date}`)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
@@ -52,7 +56,7 @@ export function useTodayLog(): UseTodayLogResult {
       supabase.removeChannel(channel)
       window.removeEventListener('focus', handleFocus)
     }
-  }, [fetchLogs, today])
+  }, [fetchLogs, date])
 
   const deleteLog = useCallback(async (id: string) => {
     const supabase = createClient()

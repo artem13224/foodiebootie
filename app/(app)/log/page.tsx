@@ -76,6 +76,8 @@ function LogPageInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const initialMeal = (searchParams.get('meal') as MealType) ?? 'breakfast'
+  // When launched from the Today screen for a past date, use that date
+  const loggingDate = searchParams.get('date') ?? new Date().toISOString().split('T')[0]
 
   // View state
   const [view, setView] = useState<View>('search')
@@ -267,11 +269,10 @@ function LogPageInner() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setLogging(false); return }
 
-    const today = new Date().toISOString().split('T')[0]
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (supabase.from('food_logs') as any).insert({
       user_id: user.id,
-      logged_date: today,
+      logged_date: loggingDate,
       meal_type: selectedMeal,
       food_name: selectedFood.name,
       serving_g: Math.round(actualG * 10) / 10,
@@ -297,12 +298,11 @@ function LogPageInner() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setLogging(false); return }
 
-    const today = new Date().toISOString().split('T')[0]
     const actualG = toGrams(parseFloat(qaQty) || 100, qaUnit)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (supabase.from('food_logs') as any).insert({
       user_id: user.id,
-      logged_date: today,
+      logged_date: loggingDate,
       meal_type: selectedMeal,
       food_name: quickAdd.name,
       serving_g: Math.round(actualG * 10) / 10,
