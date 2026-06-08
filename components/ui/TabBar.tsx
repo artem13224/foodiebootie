@@ -99,7 +99,8 @@ export default function TabBar() {
         alignItems: 'flex-end',
         justifyContent: 'space-around',
         paddingTop: '10px',
-        paddingBottom: 'max(26px, env(safe-area-inset-bottom))',
+        // 8px minimum keeps a tiny gap on non-iPhone; env() handles iPhone home bar (~34px)
+        paddingBottom: 'max(8px, env(safe-area-inset-bottom))',
       }}>
         {TABS.map(tab => {
           const active = isActive(tab)

@@ -11,8 +11,8 @@
   --color-border-soft:  #141414;
 
   --color-text:         #FFFFFF;
-  --color-text-dim:     #3A3A3A;
-  --color-text-muted:   #252525;
+  --color-text-dim:     #888888;   /* readable mid-grey on dark bg (was #3A3A3A — near-invisible) */
+  --color-text-muted:   #555555;   /* subtly dimmer secondary text (was #252525 — invisible) */
 
   --color-accent:       #FF4500;
   --color-accent-hover: #FF6B35;
@@ -102,7 +102,7 @@ body {
   max-width: 390px;
   margin: 0 auto;
   padding: 0 var(--space-5);
-  padding-bottom: max(92px, calc(66px + env(safe-area-inset-bottom)));
+  padding-bottom: max(84px, calc(66px + env(safe-area-inset-bottom)));
   min-height: 100dvh;
 }
 
