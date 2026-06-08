@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useWeightTrend } from '@/hooks/useWeightTrend'
 import WeightChart from '@/components/ui/WeightChart'
 import TDEEChart, { type TDEEHistoryPoint } from '@/components/ui/TDEEChart'
-import { kgToLbs } from '@/lib/science/utils'
+import { useUnitSystem } from '@/contexts/UnitSystemContext'
 
 type TDEEConf = 'low' | 'medium' | 'high'
 
@@ -21,6 +21,7 @@ interface TDEEEstimate {
 }
 
 export default function TrendsPage() {
+  const { displayWeight, toDisplayWeight, weightUnit } = useUnitSystem()
   const { logs, rollingPoints, loading: weightLoading, refetch: refetchWeight } = useWeightTrend()
   const [tdeeEstimate, setTdeeEstimate] = useState<TDEEEstimate | null>(null)
   const [tdeeHistory, setTdeeHistory] = useState<TDEEHistoryPoint[]>([])
@@ -144,7 +145,7 @@ export default function TrendsPage() {
             color: 'var(--color-text)',
             lineHeight: 1,
           }}>
-            {weightLoading ? '—' : latestWeight != null ? latestWeight.toFixed(1) : '—'}
+            {weightLoading ? '—' : latestWeight != null ? toDisplayWeight(latestWeight) : '—'}
           </span>
           <span style={{
             fontFamily: "'Barlow Condensed', sans-serif",
@@ -152,7 +153,7 @@ export default function TrendsPage() {
             fontSize: '16px',
             color: 'var(--color-text-dim)',
           }}>
-            KG
+            {weightUnit.toUpperCase()}
           </span>
           {delta != null && (
             <span style={{
@@ -160,26 +161,15 @@ export default function TrendsPage() {
               fontSize: '20px',
               color: delta < 0 ? 'var(--color-success)' : delta > 0 ? 'var(--color-danger)' : 'var(--color-text-dim)',
             }}>
-              {delta > 0 ? '+' : ''}{delta.toFixed(1)} / 7D
+              {delta > 0 ? '+' : ''}{toDisplayWeight(Math.abs(delta))} / 7D
             </span>
           )}
         </div>
-        {latestWeight != null && (
-          <span style={{
-            fontFamily: "'Barlow Condensed', sans-serif",
-            fontSize: '10px',
-            letterSpacing: '0.15em',
-            textTransform: 'uppercase',
-            color: 'var(--color-text-muted)',
-          }}>
-            {kgToLbs(latestWeight).toFixed(1)} LBS
-          </span>
-        )}
       </div>
 
       {/* ── Weight chart ────────────────────────────────────────────── */}
       <div style={{ marginBottom: 'var(--space-6)' }}>
-        <WeightChart rollingPoints={rollingPoints} unit="kg" />
+        <WeightChart rollingPoints={rollingPoints} unit={weightUnit} />
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '16px', marginTop: '6px' }}>
           <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: '9px', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
             <span style={{ width: '8px', height: '8px', backgroundColor: 'var(--color-text-dim)', borderRadius: '50%', display: 'inline-block', opacity: 0.4 }} />

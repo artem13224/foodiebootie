@@ -6,7 +6,8 @@ import { createClient } from '@/lib/supabase/client'
 import ProgressBar from '@/components/ui/ProgressBar'
 import { getGoalETA } from '@/lib/science/tdee'
 import { getAgeFromDOB } from '@/lib/science/rmr'
-import { clamp, kgToLbs, cmToFtIn } from '@/lib/science/utils'
+import { clamp } from '@/lib/science/utils'
+import { useUnitSystem } from '@/contexts/UnitSystemContext'
 import type { GoalType, ActivityLevel } from '@/types'
 
 interface Profile {
@@ -53,6 +54,7 @@ const ACTIVITY_LABELS: Record<ActivityLevel, string> = {
 
 export default function ProfilePage() {
   const router = useRouter()
+  const { displayWeight, displayHeight } = useUnitSystem()
   const [profile, setProfile] = useState<Profile | null>(null)
   const [weightLogs, setWeightLogs] = useState<WeightLog[]>([])
   const [tdee, setTDEE] = useState<TDEEEstimate | null>(null)
@@ -358,25 +360,8 @@ export default function ProfilePage() {
         </span>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1px', background: 'var(--color-border)' }}>
           {[
-            {
-              label: 'WEIGHT',
-              value: (() => {
-                if (!currentWeight) return '—'
-                if (profile?.unit_system === 'imperial') return `${kgToLbs(currentWeight)} LBS`
-                return `${currentWeight.toFixed(1)} KG`
-              })(),
-            },
-            {
-              label: 'HEIGHT',
-              value: (() => {
-                if (!profile?.height_cm) return '—'
-                if (profile.unit_system === 'imperial') {
-                  const { feet, inches } = cmToFtIn(profile.height_cm)
-                  return `${feet}'${inches}"`
-                }
-                return `${Math.round(profile.height_cm)} CM`
-              })(),
-            },
+            { label: 'WEIGHT', value: currentWeight ? displayWeight(currentWeight) : '—' },
+            { label: 'HEIGHT', value: profile?.height_cm ? displayHeight(profile.height_cm) : '—' },
             { label: 'AGE', value: age ? `${age} YRS` : '—' },
             { label: 'ACTIVITY', value: activityLabel },
             { label: 'GOAL', value: goalLabel },

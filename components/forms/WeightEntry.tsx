@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { localDateStr } from '@/lib/science/utils'
+import { useUnitSystem } from '@/contexts/UnitSystemContext'
 
 interface WeightEntryProps {
   onClose: () => void
@@ -12,9 +13,10 @@ interface WeightEntryProps {
 
 export default function WeightEntry({ onClose, onSaved, initialDate }: WeightEntryProps) {
   const today = localDateStr()
+  const { weightUnit } = useUnitSystem()
   const [date, setDate] = useState(initialDate ?? today)
   const [weightInput, setWeightInput] = useState('')
-  const [unit, setUnit] = useState<'kg' | 'lbs'>('kg')
+  const [unit, setUnit] = useState<'kg' | 'lbs'>(weightUnit)
   const [note, setNote] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { ftInToCm, cmToFtIn, kgToLbs, lbsToKg } from '@/lib/science/utils'
+import { useUnitSystem } from '@/contexts/UnitSystemContext'
 import type { ActivityLevel } from '@/types'
 
 // ── Activity options ──────────────────────────────────────────────────────────
@@ -75,6 +76,7 @@ const sectionStyle: React.CSSProperties = {
 
 export default function EditProfilePage() {
   const router = useRouter()
+  const { unitSystem: contextUnit } = useUnitSystem()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -85,7 +87,7 @@ export default function EditProfilePage() {
   const [dateOfBirth, setDateOfBirth] = useState('')
   const [activityLevel, setActivityLevel] = useState<ActivityLevel | null>(null)
   const [proteinPref, setProteinPref] = useState(2.4)
-  const [unitSystem, setUnitSystem] = useState<'metric' | 'imperial'>('metric')
+  const [unitSystem, setUnitSystem] = useState<'metric' | 'imperial'>(contextUnit)
 
   // Height inputs
   const [heightUnit, setHeightUnit] = useState<'cm' | 'ftIn'>('cm')
@@ -106,7 +108,7 @@ export default function EditProfilePage() {
 
       const { data: profileRaw } = await (supabase
         .from('profiles')
-        .select('username, sex, date_of_birth, height_cm, activity_level, protein_g_per_kg_lbm, unit_system')
+        .select('username, sex, date_of_birth, height_cm, activity_level, protein_g_per_kg_lbm')
         .maybeSingle() as unknown as Promise<{
           data: {
             username: string
@@ -115,7 +117,6 @@ export default function EditProfilePage() {
             height_cm: number | null
             activity_level: string | null
             protein_g_per_kg_lbm: number | null
-            unit_system: string | null
           } | null
           error: unknown
         }>)
@@ -132,18 +133,16 @@ export default function EditProfilePage() {
         }>)
 
       if (profileRaw) {
-        const sys = (profileRaw.unit_system ?? 'metric') as 'metric' | 'imperial'
-        setUnitSystem(sys)
         setUsername(profileRaw.username ?? '')
         setSex((profileRaw.sex as 'male' | 'female' | 'other' | null) ?? null)
         setDateOfBirth(profileRaw.date_of_birth ?? '')
         setActivityLevel((profileRaw.activity_level as ActivityLevel | null) ?? null)
         setProteinPref(Number(profileRaw.protein_g_per_kg_lbm ?? 2.4))
 
-        // Height
+        // Height — display in the context unit (already set from contextUnit)
         if (profileRaw.height_cm) {
           const cm = Number(profileRaw.height_cm)
-          if (sys === 'imperial') {
+          if (contextUnit === 'imperial') {
             setHeightUnit('ftIn')
             const { feet, inches } = cmToFtIn(cm)
             setFtInput(String(feet))
@@ -155,12 +154,11 @@ export default function EditProfilePage() {
         }
       }
 
-      // Weight
+      // Weight — display in the context unit
       if (latestWeight?.weight_kg) {
         const kg = Number(latestWeight.weight_kg)
         setOriginalWeightKg(kg)
-        const sys = (profileRaw?.unit_system ?? 'metric') as 'metric' | 'imperial'
-        if (sys === 'imperial') {
+        if (contextUnit === 'imperial') {
           setWeightUnit('lbs')
           setWeightInput(String(kgToLbs(kg)))
         } else {
