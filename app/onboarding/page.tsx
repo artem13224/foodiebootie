@@ -249,9 +249,9 @@ export default function OnboardingPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(buildPayload(true)),
       })
+      const json = await res.json().catch(() => ({}))
       if (!res.ok) {
-        const json = await res.json()
-        setError(json.error ?? 'Something went wrong. Please try again.')
+        setError(json.error ?? `Error ${res.status} — please try again.`)
         setSaving(false)
         return
       }
@@ -259,8 +259,8 @@ export default function OnboardingPage() {
       // instead of using Next.js's cached server component result which would
       // still see onboarding_complete=false and bounce us back here.
       window.location.href = '/today'
-    } catch {
-      setError('Network error. Please try again.')
+    } catch (err) {
+      setError(`Network error: ${err instanceof Error ? err.message : String(err)}`)
       setSaving(false)
     }
   }

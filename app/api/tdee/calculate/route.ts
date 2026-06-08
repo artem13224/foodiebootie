@@ -182,32 +182,46 @@ export async function POST(request: Request) {
   if (onboardingPayload?.save_profile) {
     const today = new Date().toISOString().split('T')[0]
 
-    // Upsert profile — cast sex/activity_level/goal_type to their literal union types
-    const upsertPayload: Database['public']['Tables']['profiles']['Insert'] = {
-      id: user.id,
-      username: onboardingPayload.username ?? profileRaw?.username ?? user.email?.split('@')[0] ?? 'user',
-      sex: profile.sex as 'male' | 'female' | 'other',
-      date_of_birth: profile.date_of_birth ?? null,
-      height_cm: profile.height_cm,
-      activity_level: profile.activity_level,
-      goal_type: profile.goal_type,
-      goal_weight_kg: profile.goal_weight_kg || null,
-      goal_rate_kg_per_week: profile.goal_rate_kg_per_week || null,
-      protein_g_per_kg_lbm: profile.protein_g_per_kg_lbm,
-      goal_start_date: today,
-      onboarding_complete: true,
-      updated_at: new Date().toISOString(),
+    // UPDATE the existing profile row (created by the auth trigger on signup).
+    // We use .update().eq() rather than .upsert() to stay within RLS policies
+    // that allow users to update their own row but not insert a new one.
+    const { error: profileUpdateError } = await supabase
+      .from('profiles')
+      .update({
+        sex: profile.sex as 'male' | 'female' | 'other',
+        date_of_birth: profile.date_of_birth ?? null,
+        height_cm: profile.height_cm,
+        activity_level: profile.activity_level,
+        goal_type: profile.goal_type,
+        goal_weight_kg: profile.goal_weight_kg || null,
+        goal_rate_kg_per_week: profile.goal_rate_kg_per_week || null,
+        protein_g_per_kg_lbm: profile.protein_g_per_kg_lbm,
+        goal_start_date: today,
+        onboarding_complete: true,
+        updated_at: new Date().toISOString(),
+      } as never)
+      .eq('id', user.id as never)
+
+    if (profileUpdateError) {
+      console.error('[tdee/calculate] profile update failed:', profileUpdateError)
+      return NextResponse.json(
+        { error: `Profile save failed: ${profileUpdateError.message}` },
+        { status: 500 }
+      )
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabase.from('profiles') as any).upsert(upsertPayload)
 
     // Insert first weight log (if not already exists for today)
     if (currentWeightKg > 0) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (supabase.from('weight_logs') as any).upsert(
-        { user_id: user.id, logged_at: today, weight_kg: currentWeightKg },
-        { onConflict: 'user_id,logged_at' }
-      )
+      const { error: weightError } = await (supabase.from('weight_logs') as any)
+        .upsert(
+          { user_id: user.id, logged_at: today, weight_kg: currentWeightKg },
+          { onConflict: 'user_id,logged_at' }
+        )
+      if (weightError) {
+        console.error('[tdee/calculate] weight log upsert failed:', weightError)
+        // Non-fatal — continue without blocking onboarding
+      }
     }
   }
 
