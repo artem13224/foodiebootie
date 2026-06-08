@@ -249,7 +249,12 @@ export default function TrendsPage() {
               value: tdeeEstimate?.adaptation_flag ? 'DETECTED' : 'NONE',
               color: tdeeEstimate?.adaptation_flag ? 'var(--color-warning)' : undefined,
             },
-            { label: 'RATE / WEEK', value: ratePerWeek != null ? `${ratePerWeek > 0 ? '+' : ''}${ratePerWeek} KG` : '—' },
+            {
+              label: 'RATE / WEEK',
+              value: ratePerWeek != null
+                ? `${ratePerWeek > 0 ? '+' : ratePerWeek < 0 ? '-' : ''}${toDisplayWeight(Math.abs(ratePerWeek))} ${weightUnit.toUpperCase()}`
+                : '—'
+            },
           ].map(stat => (
             <div key={stat.label} style={{ background: 'var(--color-bg)', padding: '14px 12px' }}>
               <div style={{

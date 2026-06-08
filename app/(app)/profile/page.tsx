@@ -54,7 +54,7 @@ const ACTIVITY_LABELS: Record<ActivityLevel, string> = {
 
 export default function ProfilePage() {
   const router = useRouter()
-  const { displayWeight, displayHeight } = useUnitSystem()
+  const { displayWeight, displayHeight, unitSystem } = useUnitSystem()
   const [profile, setProfile] = useState<Profile | null>(null)
   const [weightLogs, setWeightLogs] = useState<WeightLog[]>([])
   const [tdee, setTDEE] = useState<TDEEEstimate | null>(null)
@@ -274,10 +274,10 @@ export default function ProfilePage() {
 
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px', marginBottom: '10px' }}>
             <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '11px', color: 'var(--color-text-dim)' }}>
-              {startWeight?.toFixed(1)} KG
+              {startWeight != null ? displayWeight(startWeight) : '—'}
             </span>
             <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '11px', color: 'var(--color-text-dim)' }}>
-              {goalWeight.toFixed(1)} KG
+              {displayWeight(goalWeight)}
             </span>
           </div>
 
@@ -289,7 +289,7 @@ export default function ProfilePage() {
             color: 'var(--color-text)',
             lineHeight: 1.3,
           }}>
-            {weightToGo != null && <span>{weightToGo.toFixed(1)} KG TO GO</span>}
+            {weightToGo != null && <span>{displayWeight(weightToGo)} TO GO</span>}
             {etaDate && (
               <>
                 <span style={{ color: 'var(--color-text-dim)', margin: '0 6px' }}>·</span>
@@ -365,7 +365,14 @@ export default function ProfilePage() {
             { label: 'AGE', value: age ? `${age} YRS` : '—' },
             { label: 'ACTIVITY', value: activityLabel },
             { label: 'GOAL', value: goalLabel },
-            { label: 'PROTEIN PREF', value: profile?.protein_g_per_kg_lbm ? `${profile.protein_g_per_kg_lbm} G/KG` : '—' },
+            {
+              label: 'PROTEIN PREF',
+              value: profile?.protein_g_per_kg_lbm
+                ? unitSystem === 'imperial'
+                  ? `${(profile.protein_g_per_kg_lbm / 2.205).toFixed(2)} G/LB`
+                  : `${profile.protein_g_per_kg_lbm} G/KG`
+                : '—'
+            },
           ].map(stat => (
             <div key={stat.label} style={{ background: 'var(--color-bg)', padding: '14px 12px' }}>
               <div style={{

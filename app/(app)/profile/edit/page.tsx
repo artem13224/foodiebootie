@@ -276,6 +276,9 @@ export default function EditProfilePage() {
       })
     }
 
+    // 3. Recalculate TDEE so macro/kcal targets reflect the updated profile
+    await fetch('/api/tdee/calculate', { method: 'POST' })
+
     window.location.href = '/profile'
   }
 
