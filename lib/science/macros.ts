@@ -36,11 +36,11 @@ export function getMacroTargets(p: {
   protein_g_per_kg_lbm: number  // user preference, default 2.4
   goal_rate_kg_per_week: number
 }): MacroTargetResult {
-  // 1. Protein — use LBM if available, else body weight × 1.8
+  // 1. Protein — use LBM if available, else body weight as a proxy.
+  //    Either way the user's protein_g_per_kg_lbm preference is respected.
+  //    (Using body weight × 1.8 as a fallback silently ignored the preference.)
   const protein_g = Math.round(
-    p.lean_mass_kg !== null
-      ? p.lean_mass_kg * p.protein_g_per_kg_lbm
-      : p.body_weight_kg * 1.8
+    (p.lean_mass_kg ?? p.body_weight_kg) * p.protein_g_per_kg_lbm
   )
 
   // 2. Fat floor — max(body_weight × 0.7g/kg, 40g minimum)

@@ -250,10 +250,18 @@ export async function POST(request: Request) {
     }),
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: newEstimate } = await (supabase.from('tdee_estimates') as any)
+  const { data: newEstimate, error: insertError } = await (supabase.from('tdee_estimates') as any)
     .insert(insertPayload)
     .select()
-    .single() as { data: { id: string } | null; error: unknown }
+    .single() as { data: { id: string } | null; error: { message: string } | null }
+
+  if (insertError) {
+    console.error('[tdee/calculate] insert failed:', insertError)
+    return NextResponse.json(
+      { error: `TDEE estimate save failed: ${insertError.message}` },
+      { status: 500 }
+    )
+  }
 
   // ── 12. Return full result ────────────────────────────────────────────────
   return NextResponse.json({
