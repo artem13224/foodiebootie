@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import type { ActivityLevel, GoalType } from '@/types'
 import { ftInToCm, cmToFtIn, kgToLbs, lbsToKg } from '@/lib/science/utils'
 import { getDailyTarget, getGoalETA } from '@/lib/science/tdee'
@@ -126,7 +125,6 @@ const cardStyle = (selected: boolean): React.CSSProperties => ({
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function OnboardingPage() {
-  const router = useRouter()
   const [step, setStep] = useState(0)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -257,7 +255,10 @@ export default function OnboardingPage() {
         setSaving(false)
         return
       }
-      router.push('/today')
+      // Full reload — forces (app)/layout.tsx to re-read the profile from DB
+      // instead of using Next.js's cached server component result which would
+      // still see onboarding_complete=false and bounce us back here.
+      window.location.href = '/today'
     } catch {
       setError('Network error. Please try again.')
       setSaving(false)
