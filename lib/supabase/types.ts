@@ -31,6 +31,7 @@ export type Database = {
           last_period_start: string | null
           avg_cycle_length_days: number
           onboarding_complete: boolean
+          unit_system: 'metric' | 'imperial'
           created_at: string
           updated_at: string
         }
@@ -53,6 +54,7 @@ export type Database = {
           last_period_start?: string | null
           avg_cycle_length_days?: number
           onboarding_complete?: boolean
+          unit_system?: 'metric' | 'imperial'
           created_at?: string
           updated_at?: string
         }
@@ -74,6 +76,7 @@ export type Database = {
           last_period_start?: string | null
           avg_cycle_length_days?: number
           onboarding_complete?: boolean
+          unit_system?: 'metric' | 'imperial'
           updated_at?: string
         }
       }

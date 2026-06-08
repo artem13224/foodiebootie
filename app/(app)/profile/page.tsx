@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import ProgressBar from '@/components/ui/ProgressBar'
 import { getGoalETA } from '@/lib/science/tdee'
 import { getAgeFromDOB } from '@/lib/science/rmr'
-import { clamp } from '@/lib/science/utils'
+import { clamp, kgToLbs, cmToFtIn } from '@/lib/science/utils'
 import type { GoalType, ActivityLevel } from '@/types'
 
 interface Profile {
@@ -21,6 +21,7 @@ interface Profile {
   goal_rate_kg_per_week: number | null
   goal_start_date: string | null
   protein_g_per_kg_lbm: number | null
+  unit_system: 'metric' | 'imperial'
 }
 
 interface WeightLog {
@@ -62,7 +63,7 @@ export default function ProfilePage() {
     async function load() {
       const supabase = createClient()
 
-      type PRow = { id: string; username: string; sex: string | null; date_of_birth: string | null; height_cm: number | null; activity_level: string | null; goal_type: string | null; goal_weight_kg: number | null; goal_rate_kg_per_week: number | null; goal_start_date: string | null; protein_g_per_kg_lbm: number | null }
+      type PRow = { id: string; username: string; sex: string | null; date_of_birth: string | null; height_cm: number | null; activity_level: string | null; goal_type: string | null; goal_weight_kg: number | null; goal_rate_kg_per_week: number | null; goal_start_date: string | null; protein_g_per_kg_lbm: number | null; unit_system: string | null }
       type WRow = { logged_at: string; weight_kg: number }
       type TRow = { adaptation_flag: boolean; data_points: number; daily_kcal_target: number | null }
 
@@ -90,6 +91,7 @@ export default function ProfilePage() {
           goal_rate_kg_per_week: profileData.goal_rate_kg_per_week ? Number(profileData.goal_rate_kg_per_week) : null,
           goal_start_date: profileData.goal_start_date ?? null,
           protein_g_per_kg_lbm: profileData.protein_g_per_kg_lbm ? Number(profileData.protein_g_per_kg_lbm) : null,
+          unit_system: (profileData.unit_system as 'metric' | 'imperial') ?? 'metric',
         })
       }
 
@@ -356,8 +358,25 @@ export default function ProfilePage() {
         </span>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1px', background: 'var(--color-border)' }}>
           {[
-            { label: 'WEIGHT', value: currentWeight ? `${currentWeight.toFixed(1)} KG` : '—' },
-            { label: 'HEIGHT', value: profile?.height_cm ? `${profile.height_cm} CM` : '—' },
+            {
+              label: 'WEIGHT',
+              value: (() => {
+                if (!currentWeight) return '—'
+                if (profile?.unit_system === 'imperial') return `${kgToLbs(currentWeight)} LBS`
+                return `${currentWeight.toFixed(1)} KG`
+              })(),
+            },
+            {
+              label: 'HEIGHT',
+              value: (() => {
+                if (!profile?.height_cm) return '—'
+                if (profile.unit_system === 'imperial') {
+                  const { feet, inches } = cmToFtIn(profile.height_cm)
+                  return `${feet}'${inches}"`
+                }
+                return `${Math.round(profile.height_cm)} CM`
+              })(),
+            },
             { label: 'AGE', value: age ? `${age} YRS` : '—' },
             { label: 'ACTIVITY', value: activityLabel },
             { label: 'GOAL', value: goalLabel },
@@ -392,7 +411,7 @@ export default function ProfilePage() {
       {/* ── Action buttons ───────────────────────────────────────────── */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: 'var(--space-8)' }}>
         <button
-          onClick={() => router.push('/onboarding')}
+          onClick={() => router.push('/profile/edit')}
           style={{
             background: 'none',
             border: '1px solid var(--color-border)',
