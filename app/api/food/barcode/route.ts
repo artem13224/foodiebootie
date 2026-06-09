@@ -14,16 +14,19 @@ function getNutrient(
   return nutrients.find(n => n.nutrientId === id)?.value ?? 0
 }
 
-/** Try one Open Food Facts host and return a FoodResult or null. */
-async function tryOFF(barcode: string, host: string): Promise<FoodResult | null> {
+/** Fetch one barcode from Open Food Facts (world instance) and return a FoodResult or null. */
+async function tryOFF(barcode: string): Promise<FoodResult | null> {
   try {
     const res = await fetch(
-      `https://${host}/api/v3/product/${encodeURIComponent(barcode)}.json`,
+      `https://world.openfoodfacts.org/api/v3/product/${encodeURIComponent(barcode)}.json`,
       { next: { revalidate: 86400 } },
     )
     if (!res.ok) return null
     const data = await res.json()
-    if (data.status !== 'success' || !data.product) return null
+
+    // OFF v3 uses status:'success'; v0 legacy uses status:1 — accept either
+    const found = data.status === 'success' || data.status === 1
+    if (!found || !data.product) return null
 
     const p = data.product
     const n = p.nutriments ?? {}
@@ -58,12 +61,13 @@ export async function GET(request: Request) {
     return NextResponse.json({ food: null, error: 'Missing barcode' }, { status: 400 })
   }
 
-  // ── 1. Open Food Facts — Canada mirror first, world as fallback ───────────
-  // ca.openfoodfacts.org has the most complete data for Canadian packaged goods.
-  // world.openfoodfacts.org catches everything else (US, EU, international).
-  const offResult =
-    (await tryOFF(code, 'ca.openfoodfacts.org')) ??
-    (await tryOFF(code, 'world.openfoodfacts.org'))
+  // ── 1. Open Food Facts ────────────────────────────────────────────────────
+  // world.openfoodfacts.org contains ALL products from all countries including
+  // Canada — regional mirrors (ca., fr., etc.) are UI-only and don't add coverage.
+  // iOS BarcodeDetector sometimes strips the leading zero from EAN-13 codes
+  // (reads 12 digits instead of 13), so we try both forms.
+  const codeEan = code.length === 12 ? '0' + code : code  // normalise to EAN-13
+  const offResult = (await tryOFF(codeEan)) ?? (code !== codeEan ? await tryOFF(code) : null)
 
   if (offResult) return NextResponse.json({ food: offResult })
 
