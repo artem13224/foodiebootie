@@ -99,6 +99,7 @@ function LogPageInner() {
   const [sheetVisible, setSheetVisible] = useState(false)
   const [selectedMeal, setSelectedMeal] = useState<MealType>(initialMeal)
   const [logging, setLogging] = useState(false)
+  const [logError, setLogError] = useState('')
 
   // Weight entry state
   const [showWeightEntry, setShowWeightEntry] = useState(false)
@@ -268,13 +269,14 @@ function LogPageInner() {
     const actualG = toGrams(parseFloat(servingQty) || 0, servingUnit, selectedFood.servingG)
     if (actualG <= 0) return
     setLogging(true)
+    setLogError('')
 
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setLogging(false); return }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabase.from('food_logs') as any).insert({
+    const { error } = await (supabase.from('food_logs') as any).insert({
       user_id: user.id,
       logged_date: loggingDate,
       meal_type: selectedMeal,
@@ -290,6 +292,12 @@ function LogPageInner() {
       custom_food_id: selectedFood.customFoodId ?? null,
     })
 
+    if (error) {
+      setLogError(error.message)
+      setLogging(false)
+      return
+    }
+
     router.back()
   }
 
@@ -297,6 +305,7 @@ function LogPageInner() {
     const kcal = parseFloat(quickAdd.kcal)
     if (!quickAdd.name || !kcal) return
     setLogging(true)
+    setLogError('')
 
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -304,7 +313,7 @@ function LogPageInner() {
 
     const actualG = toGrams(parseFloat(qaQty) || 100, qaUnit)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabase.from('food_logs') as any).insert({
+    const { error } = await (supabase.from('food_logs') as any).insert({
       user_id: user.id,
       logged_date: loggingDate,
       meal_type: selectedMeal,
@@ -315,6 +324,12 @@ function LogPageInner() {
       carbs_g: parseFloat(quickAdd.carbs) || 0,
       fat_g: parseFloat(quickAdd.fat) || 0,
     })
+
+    if (error) {
+      setLogError(error.message)
+      setLogging(false)
+      return
+    }
 
     router.back()
   }
@@ -989,6 +1004,12 @@ function LogPageInner() {
           </div>
 
           <MealSelector selected={selectedMeal} onChange={setSelectedMeal} />
+
+          {logError ? (
+            <div style={{ fontFamily: "'Barlow', sans-serif", fontSize: '12px', color: 'var(--color-danger)', marginBottom: '8px' }}>
+              {logError}
+            </div>
+          ) : null}
 
           <button onClick={handleLog}
             disabled={logging || previewG <= 0}
