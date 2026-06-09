@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
-import { CHECKIN_STORAGE_KEY } from '@/app/(app)/weekly-checkin/page'
+import { CHECKIN_STORAGE_KEY } from '@/lib/weeklyCheckin'
 import { localDateStr } from '@/lib/science/utils'
 
 /** Returns the Monday of the current week as YYYY-MM-DD. */

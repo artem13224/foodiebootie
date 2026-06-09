@@ -158,6 +158,9 @@ export async function POST(request: Request) {
 
   // ── 9. Adaptation detection ───────────────────────────────────────────────
   let adaptationFlag = false
+  let adaptationSuppressionPct = 0
+  let adaptationDeficitWeeks = 0
+  let adaptationSeverity: 'mild' | 'moderate' | null = null
   if (tdeeResult.method === 'adaptive_regression') {
     // Compute weekly avg intakes for deficit week counter
     const weeklyIntakes: number[] = []
@@ -176,6 +179,9 @@ export async function POST(request: Request) {
     const deficitWeeks = countDeficitWeeks(weeklyIntakes, formulaTDEE)
     const adaptation = detectAdaptation(tdeeResult.tdee_kcal, formulaTDEE, deficitWeeks)
     adaptationFlag = adaptation.flag
+    adaptationSuppressionPct = adaptation.suppressionPct
+    adaptationDeficitWeeks = deficitWeeks
+    adaptationSeverity = adaptation.severity ?? null
   }
 
   // ── 10. If onboarding: save profile + first weight log ───────────────────
@@ -242,6 +248,11 @@ export async function POST(request: Request) {
       weekly_tdees: tdeeResult.weekly_tdees,
       regression_weights: tdeeResult.regression_weights,
       weekly_variances: tdeeResult.weekly_variances,
+      // Adaptation detail — persisted so the diet-break recommendation card
+      // can show specifics (suppression %, weeks in deficit) without recompute.
+      suppression_pct: adaptationSuppressionPct,
+      deficit_weeks: adaptationDeficitWeeks,
+      adaptation_severity: adaptationSeverity,
       ensemble: {
         mifflin: Math.round(ensembleResult.mifflin),
         katch: ensembleResult.katch ? Math.round(ensembleResult.katch) : null,

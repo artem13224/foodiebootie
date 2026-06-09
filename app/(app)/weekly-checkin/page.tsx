@@ -8,13 +8,16 @@ import type { WeightLogEntry } from '@/lib/science/tdee'
 import { getGoalETA } from '@/lib/science/tdee'
 import { clamp, localDateStr } from '@/lib/science/utils'
 import { computeWeeklyInsights } from '@/lib/science/weeklyInsights'
+import { parseAdaptationDetail, buildDietBreakRecommendation } from '@/lib/science/dietBreak'
+import { scoreAdherence, aggregateDailyTotals, adherenceInsight } from '@/lib/science/adherence'
+import { checkWhatIfEligibility, projectWhatIf } from '@/lib/science/whatif'
+import DietBreakCard from '@/components/ui/DietBreakCard'
 import { useUnitSystem } from '@/contexts/UnitSystemContext'
 import ProgressBar from '@/components/ui/ProgressBar'
+import { CHECKIN_STORAGE_KEY } from '@/lib/weeklyCheckin'
 import type { GoalType } from '@/types'
 
-// ── Storage key ───────────────────────────────────────────────────────────────
-
-export const CHECKIN_STORAGE_KEY = 'lastCheckinWeekMonday'
+const WHATIF_TARGET_ADHERENCE = 90
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -44,14 +47,19 @@ interface Profile {
 }
 
 interface TDEEEstimate {
+  id: string
   tdee_kcal: number
   method: string | null
-  confidence: string | null
+  confidence: 'low' | 'medium' | 'high' | null
   data_points: number
   daily_kcal_target: number | null
   protein_g: number | null
   fat_g: number | null
   carbs_g: number | null
+  adaptation_flag: boolean
+  suppression_pct: number
+  deficit_weeks: number
+  severity: 'mild' | 'moderate' | null
 }
 
 interface WeightLog {
@@ -59,9 +67,12 @@ interface WeightLog {
   weight_kg: number
 }
 
-interface FoodLogRow {
+interface WeekFoodRow {
   logged_date: string
+  kcal: number
   protein_g: number
+  carbs_g: number
+  fat_g: number
 }
 
 // ── Styled section card ───────────────────────────────────────────────────────
@@ -131,6 +142,8 @@ export default function WeeklyCheckinPage() {
   const [tdee, setTDEE] = useState<TDEEEstimate | null>(null)
   const [weekFoodDays, setWeekFoodDays] = useState(0)
   const [weekProteinDays, setWeekProteinDays] = useState<number | null>(null)
+  const [weekFoodRows, setWeekFoodRows] = useState<WeekFoodRow[]>([])
+  const [weeksOfData, setWeeksOfData] = useState(0)
 
   const load = useCallback(async () => {
     const supabase = createClient()
@@ -139,14 +152,14 @@ export default function WeeklyCheckinPage() {
 
     type PRow = { goal_type: string | null; goal_weight_kg: number | null; goal_rate_kg_per_week: number | null; goal_start_date: string | null; protein_g_per_kg_lbm: number | null }
     type WRow = { logged_at: string; weight_kg: number }
-    type TRow = { tdee_kcal: number; method: string | null; confidence: string | null; data_points: number; daily_kcal_target: number | null; protein_g: number | null; fat_g: number | null; carbs_g: number | null }
-    type FRow = { logged_date: string; protein_g: number }
+    type TRow = { id: string; tdee_kcal: number; method: string | null; confidence: 'low' | 'medium' | 'high' | null; data_points: number; daily_kcal_target: number | null; protein_g: number | null; fat_g: number | null; carbs_g: number | null; adaptation_flag: boolean; notes: string | null }
+    type FRow = { logged_date: string; kcal: number; protein_g: number; carbs_g: number; fat_g: number }
 
     const [{ data: pData }, { data: wData }, { data: tData }, { data: fData }] = await Promise.all([
       supabase.from('profiles').select('goal_type, goal_weight_kg, goal_rate_kg_per_week, goal_start_date, protein_g_per_kg_lbm').maybeSingle() as unknown as Promise<{ data: PRow | null }>,
       supabase.from('weight_logs').select('logged_at, weight_kg').order('logged_at', { ascending: true }) as unknown as Promise<{ data: WRow[] | null }>,
-      supabase.from('tdee_estimates').select('tdee_kcal, method, confidence, data_points, daily_kcal_target, protein_g, fat_g, carbs_g').order('calculated_at', { ascending: false }).limit(1).maybeSingle() as unknown as Promise<{ data: TRow | null }>,
-      supabase.from('food_logs').select('logged_date, protein_g').gte('logged_date', weekMon).lte('logged_date', weekSun) as unknown as Promise<{ data: FRow[] | null }>,
+      supabase.from('tdee_estimates').select('id, tdee_kcal, method, confidence, data_points, daily_kcal_target, protein_g, fat_g, carbs_g, adaptation_flag, notes').order('calculated_at', { ascending: false }).limit(1).maybeSingle() as unknown as Promise<{ data: TRow | null }>,
+      supabase.from('food_logs').select('logged_date, kcal, protein_g, carbs_g, fat_g').gte('logged_date', weekMon).lte('logged_date', weekSun) as unknown as Promise<{ data: FRow[] | null }>,
     ])
 
     if (pData) {
@@ -166,8 +179,19 @@ export default function WeeklyCheckinPage() {
     setAllWeightLogs(allLogs)
     setWeekWeightLogs(allLogs.filter(l => l.logged_at >= weekMon && l.logged_at <= weekSun))
 
+    // Weeks of data = calendar span of weight logs (drives what-if guardrail).
+    if (allLogs.length >= 2) {
+      const first = new Date(allLogs[0].logged_at + 'T12:00:00').getTime()
+      const last = new Date(allLogs[allLogs.length - 1].logged_at + 'T12:00:00').getTime()
+      setWeeksOfData(Math.floor((last - first) / (7 * 24 * 3600 * 1000)))
+    } else {
+      setWeeksOfData(0)
+    }
+
     if (tData) {
+      const detail = parseAdaptationDetail(tData.notes)
       setTDEE({
+        id: tData.id,
         tdee_kcal: Number(tData.tdee_kcal),
         method: tData.method,
         confidence: tData.confidence,
@@ -176,11 +200,22 @@ export default function WeeklyCheckinPage() {
         protein_g: tData.protein_g ? Number(tData.protein_g) : null,
         fat_g: tData.fat_g ? Number(tData.fat_g) : null,
         carbs_g: tData.carbs_g ? Number(tData.carbs_g) : null,
+        adaptation_flag: tData.adaptation_flag,
+        suppression_pct: detail?.suppression_pct ?? 0,
+        deficit_weeks: detail?.deficit_weeks ?? 0,
+        severity: detail?.adaptation_severity ?? null,
       })
     }
 
-    // Food day count + protein adherence
-    const foodRows = fData ?? []
+    // Week food rows (full macros) for adherence + day count + protein adherence.
+    const foodRows: WeekFoodRow[] = (fData ?? []).map(r => ({
+      logged_date: r.logged_date,
+      kcal: Number(r.kcal),
+      protein_g: Number(r.protein_g),
+      carbs_g: Number(r.carbs_g),
+      fat_g: Number(r.fat_g),
+    }))
+    setWeekFoodRows(foodRows)
     setWeekFoodDays(new Set(foodRows.map(r => r.logged_date)).size)
 
     const pTarget = pData?.protein_g_per_kg_lbm ? Number(pData.protein_g_per_kg_lbm) : null
@@ -189,7 +224,7 @@ export default function WeeklyCheckinPage() {
       const dailyTargetG = pTarget * bwKg * 0.85
       const proteinByDay = new Map<string, number>()
       for (const row of foodRows) {
-        proteinByDay.set(row.logged_date, (proteinByDay.get(row.logged_date) ?? 0) + Number(row.protein_g))
+        proteinByDay.set(row.logged_date, (proteinByDay.get(row.logged_date) ?? 0) + row.protein_g)
       }
       setWeekProteinDays(Array.from(proteinByDay.values()).filter(g => g >= dailyTargetG).length)
     } else {
@@ -273,7 +308,45 @@ export default function WeeklyCheckinPage() {
     unitSystem,
   })
 
-  const insights = [loggingInsight, weightInsight, proteinInsight].filter((s): s is string => s != null)
+  // ── Adherence scoring ──────────────────────────────────────────────────────
+  const adherence = (() => {
+    if (!tdee?.daily_kcal_target || tdee.protein_g == null || tdee.carbs_g == null || tdee.fat_g == null) {
+      return null
+    }
+    const dailyTotals = aggregateDailyTotals(weekFoodRows)
+    return scoreAdherence(dailyTotals, {
+      daily_kcal_target: tdee.daily_kcal_target,
+      protein_g: tdee.protein_g,
+      carbs_g: tdee.carbs_g,
+      fat_g: tdee.fat_g,
+    })
+  })()
+
+  const adherenceInsightStr = adherence ? adherenceInsight(adherence) : null
+
+  // Append adherence insight to the reflection list (reuses insight-string pattern).
+  const insights = [loggingInsight, weightInsight, proteinInsight, adherenceInsightStr]
+    .filter((s): s is string => s != null)
+
+  // ── What-if modeling (guardrailed) ─────────────────────────────────────────
+  const whatIfEligibility = checkWhatIfEligibility({
+    confidence: tdee?.confidence ?? null,
+    weeksOfData,
+  })
+
+  const whatIf = (() => {
+    if (!whatIfEligibility.eligible) return null
+    if (!tdee?.daily_kcal_target || currentWeight == null || goalWeight == null) return null
+    if (profile?.goal_type === 'maintain') return null
+    return projectWhatIf({
+      adaptiveTDEE: tdee.tdee_kcal,
+      dailyKcalTarget: tdee.daily_kcal_target,
+      currentWeightKg: currentWeight,
+      goalWeightKg: goalWeight,
+      observedRateKgPerWeek: actualRate,
+      targetAdherencePct: WHATIF_TARGET_ADHERENCE,
+    })
+  })()
 
   function handleGotIt() {
     if (typeof window !== 'undefined') {
@@ -339,6 +412,19 @@ export default function WeeklyCheckinPage() {
         </div>
       ) : (
         <>
+          {/* ── Diet-break recommendation (adaptation action layer) ─────── */}
+          {tdee?.adaptation_flag && (
+            <DietBreakCard
+              dedupeKey={`checkin:${tdee.id}`}
+              rec={buildDietBreakRecommendation({
+                adaptiveTDEE: tdee.tdee_kcal,
+                suppressionPct: tdee.suppression_pct,
+                deficitWeeks: tdee.deficit_weeks,
+                severity: tdee.severity,
+              })}
+            />
+          )}
+
           {/* ── 1. Weight trend ─────────────────────────────────────────── */}
           <SectionCard title="Weight Trend">
             {weekWeightLogs.length < 2 ? (
@@ -454,6 +540,87 @@ export default function WeeklyCheckinPage() {
                   />
                 )}
                 <StatRow label="PACE" value={paceLabel} valueColor={paceColor} />
+              </>
+            )}
+          </SectionCard>
+
+          {/* ── 4b. Adherence ────────────────────────────────────────────── */}
+          <SectionCard title="Macro Adherence">
+            {!adherence ? (
+              <span style={{ fontFamily: "'Barlow', sans-serif", fontSize: '12px', color: 'var(--color-text-dim)' }}>
+                Set targets and log food to score adherence.
+              </span>
+            ) : adherence.daysLogged === 0 ? (
+              <span style={{ fontFamily: "'Barlow', sans-serif", fontSize: '12px', color: 'var(--color-text-dim)' }}>
+                No food logged this week yet.
+              </span>
+            ) : (
+              <>
+                <div style={{ marginBottom: '12px' }}>
+                  <span style={{
+                    fontFamily: "'Bebas Neue', sans-serif",
+                    fontSize: '40px',
+                    letterSpacing: '-0.01em',
+                    color: 'var(--color-text)',
+                    lineHeight: 1,
+                  }}>
+                    {adherence.overallPct}%
+                  </span>
+                  <span style={{
+                    fontFamily: "'Barlow Condensed', sans-serif",
+                    fontWeight: 700,
+                    fontSize: '12px',
+                    color: 'var(--color-text-dim)',
+                    marginLeft: '8px',
+                  }}>
+                    OVERALL · {adherence.daysLogged} DAY{adherence.daysLogged === 1 ? '' : 'S'} LOGGED
+                  </span>
+                </div>
+                <StatRow label="CALORIES" value={`${adherence.caloriesHits}/${adherence.daysLogged}`} />
+                <StatRow label="PROTEIN" value={`${adherence.proteinHits}/${adherence.daysLogged}`} />
+                <StatRow label="CARBS" value={`${adherence.carbsHits}/${adherence.daysLogged}`} />
+                <StatRow label="FAT" value={`${adherence.fatHits}/${adherence.daysLogged}`} />
+              </>
+            )}
+          </SectionCard>
+
+          {/* ── 4c. What-if projection ───────────────────────────────────── */}
+          <SectionCard title="What-If Projection">
+            {!whatIf ? (
+              <span style={{ fontFamily: "'Barlow', sans-serif", fontSize: '12px', color: 'var(--color-text-dim)' }}>
+                {whatIfEligibility.reason ?? 'Need more data for projections'}
+              </span>
+            ) : (
+              <>
+                {whatIf.baselineETA && whatIf.baselineRateKgPerWeek != null ? (
+                  <StatRow
+                    label="CURRENT PACE ETA"
+                    value={whatIf.baselineETA.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }).toUpperCase()}
+                  />
+                ) : (
+                  <StatRow label="CURRENT PACE" value="NO MOVEMENT YET" />
+                )}
+                <StatRow
+                  label={`AT ${whatIf.targetAdherencePct}% ADHERENCE`}
+                  value={whatIf.scenarioETA.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }).toUpperCase()}
+                  valueColor="var(--color-accent)"
+                />
+                {whatIf.weeksDelta != null && whatIf.weeksDelta !== 0 && (
+                  <StatRow
+                    label="DIFFERENCE"
+                    value={`${Math.abs(whatIf.weeksDelta)} WK ${whatIf.weeksDelta > 0 ? 'SOONER' : 'LATER'}`}
+                    valueColor={whatIf.weeksDelta > 0 ? 'var(--color-success)' : 'var(--color-warning)'}
+                  />
+                )}
+                <p style={{
+                  fontFamily: "'Barlow', sans-serif",
+                  fontSize: '11px',
+                  color: 'var(--color-text-muted)',
+                  lineHeight: 1.5,
+                  margin: '8px 0 0',
+                }}>
+                  Estimates based on your adaptive TDEE and logged pace — not guarantees.
+                </p>
               </>
             )}
           </SectionCard>

@@ -9,6 +9,8 @@ import type { WeightLogEntry } from '@/lib/science/tdee'
 import { getAgeFromDOB } from '@/lib/science/rmr'
 import { clamp, localDateStr } from '@/lib/science/utils'
 import { computeWeeklyInsights } from '@/lib/science/weeklyInsights'
+import { parseAdaptationDetail, buildDietBreakRecommendation } from '@/lib/science/dietBreak'
+import DietBreakCard from '@/components/ui/DietBreakCard'
 import { useUnitSystem } from '@/contexts/UnitSystemContext'
 import type { GoalType, ActivityLevel } from '@/types'
 
@@ -52,9 +54,14 @@ interface WeightLog {
 }
 
 interface TDEEEstimate {
+  id: string
   adaptation_flag: boolean
   data_points: number
   daily_kcal_target: number | null
+  tdee_kcal: number
+  suppression_pct: number
+  deficit_weeks: number
+  severity: 'mild' | 'moderate' | null
 }
 
 const GOAL_LABELS: Record<GoalType, string> = {
@@ -94,7 +101,7 @@ export default function ProfilePage() {
 
       type PRow = { id: string; username: string; sex: string | null; date_of_birth: string | null; height_cm: number | null; activity_level: string | null; goal_type: string | null; goal_weight_kg: number | null; goal_rate_kg_per_week: number | null; goal_start_date: string | null; protein_g_per_kg_lbm: number | null; unit_system: string | null }
       type WRow = { logged_at: string; weight_kg: number }
-      type TRow = { adaptation_flag: boolean; data_points: number; daily_kcal_target: number | null }
+      type TRow = { id: string; adaptation_flag: boolean; data_points: number; daily_kcal_target: number | null; tdee_kcal: number; notes: string | null }
       type FRow = { logged_date: string; protein_g: number }
 
       const weekMon = currentWeekMonday()
@@ -105,7 +112,7 @@ export default function ProfilePage() {
         supabase.from('weight_logs').select('logged_at, weight_kg').order('logged_at', { ascending: true }) as unknown as Promise<{ data: WRow[] | null; error: unknown }>,
         supabase
           .from('tdee_estimates')
-          .select('adaptation_flag, data_points, daily_kcal_target')
+          .select('id, adaptation_flag, data_points, daily_kcal_target, tdee_kcal, notes')
           .order('calculated_at', { ascending: false })
           .limit(1)
           .maybeSingle() as unknown as Promise<{ data: TRow | null; error: unknown }>,
@@ -141,10 +148,16 @@ export default function ProfilePage() {
       )
 
       if (tdeeData) {
+        const detail = parseAdaptationDetail(tdeeData.notes)
         setTDEE({
+          id: tdeeData.id,
           adaptation_flag: tdeeData.adaptation_flag,
           data_points: tdeeData.data_points,
           daily_kcal_target: tdeeData.daily_kcal_target ? Number(tdeeData.daily_kcal_target) : null,
+          tdee_kcal: Number(tdeeData.tdee_kcal),
+          suppression_pct: detail?.suppression_pct ?? 0,
+          deficit_weeks: detail?.deficit_weeks ?? 0,
+          severity: detail?.adaptation_severity ?? null,
         })
       }
 
@@ -451,34 +464,17 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* ── Adaptation warning ───────────────────────────────────────── */}
+      {/* ── Diet-break recommendation (adaptation action layer) ──────── */}
       {tdee?.adaptation_flag && (
-        <div style={{
-          borderLeft: '2px solid var(--color-warning)',
-          paddingLeft: '14px',
-          marginBottom: 'var(--space-5)',
-        }}>
-          <div style={{
-            fontFamily: "'Barlow Condensed', sans-serif",
-            fontWeight: 700,
-            fontSize: '11px',
-            letterSpacing: '0.15em',
-            textTransform: 'uppercase',
-            color: 'var(--color-warning)',
-            marginBottom: '6px',
-          }}>
-            METABOLIC ADAPTATION DETECTED
-          </div>
-          <p style={{
-            fontFamily: "'Barlow', sans-serif",
-            fontSize: '12px',
-            color: 'var(--color-text-dim)',
-            lineHeight: 1.6,
-            margin: 0,
-          }}>
-            You&apos;ve been in a prolonged deficit and your metabolism has adapted. Consider a diet break or refeed week to reset metabolic rate before continuing.
-          </p>
-        </div>
+        <DietBreakCard
+          dedupeKey={tdee.id}
+          rec={buildDietBreakRecommendation({
+            adaptiveTDEE: tdee.tdee_kcal,
+            suppressionPct: tdee.suppression_pct,
+            deficitWeeks: tdee.deficit_weeks,
+            severity: tdee.severity,
+          })}
+        />
       )}
 
       {/* ── Weekly Check-In entry ───────────────────────────────────── */}
