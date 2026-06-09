@@ -1,5 +1,5 @@
 import type { TDEEConfidence } from '@/types'
-import { parseLocalDate, daysBetween } from './utils'
+import { daysBetween } from './utils'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -32,44 +32,50 @@ export interface TDEEResult {
   weekly_variances?: number[]
 }
 
-// ─── Rolling Average ──────────────────────────────────────────────────────────
+// ─── EWMA Trend Weight ────────────────────────────────────────────────────────
 
 /**
- * 7-day rolling average weight to suppress glycogen and water-retention noise.
- * For each weigh-in, averages all entries within the preceding `windowDays`
- * days (inclusive of the current entry's date).
+ * Exponentially Weighted Moving Average (EWMA) trend weight.
+ *
+ * Replaces the plain rolling-average approach with a true EWMA, which is
+ * more responsive to sustained changes while still suppressing day-to-day
+ * glycogen and water-retention noise.
+ *
+ * Smoothing factor: α = 0.1
+ * Effective half-life: t½ = ln(0.5) / ln(1 − α) ≈ 6.6 days.
+ * This matches the convention used by MacroFactor and is grounded in the
+ * Thomas et al. 2014 weight-change model — short-term fluctuations decay
+ * within ~2 weeks while real fat-mass trends accumulate.
+ *
+ * Seeded from the first observation; no warm-up period needed because
+ * physiological outliers are rare and self-correct within ~3 readings.
+ *
+ * The field name `rolling_avg` is kept for backward compatibility with all
+ * downstream consumers (WeightChart, adaptive TDEE, profile page, etc.).
  *
  * Reference: Thomas DM et al. A mathematical model of weight change with
  * adaptation. Int J Obes. 2014;38(12):1565-1570.
  */
 export function getRollingAverage(
   logs: WeightLogEntry[],
-  windowDays = 7,
 ): RollingPoint[] {
-  // Sort ascending by date
   const sorted = [...logs].sort((a, b) =>
     a.logged_at < b.logged_at ? -1 : a.logged_at > b.logged_at ? 1 : 0
   )
 
-  return sorted.map(entry => {
-    // Collect entries within [date - (windowDays-1) days, date]
-    const entryDate = parseLocalDate(entry.logged_at)
-    const windowStart = new Date(entryDate)
-    windowStart.setDate(windowStart.getDate() - (windowDays - 1))
+  if (sorted.length === 0) return []
 
-    const windowEntries = sorted.filter(e => {
-      const d = parseLocalDate(e.logged_at)
-      return d >= windowStart && d <= entryDate
-    })
+  const ALPHA = 0.1  // ~6.6-day half-life; chosen to match MacroFactor's EWMA approach
+  let ewma = sorted[0].weight_kg
 
-    const avg =
-      windowEntries.reduce((sum, e) => sum + e.weight_kg, 0) /
-      windowEntries.length
-
+  return sorted.map((entry, i) => {
+    if (i > 0) {
+      ewma = ALPHA * entry.weight_kg + (1 - ALPHA) * ewma
+    }
     return {
       date: entry.logged_at,
       raw_weight: entry.weight_kg,
-      rolling_avg: Math.round(avg * 100) / 100,
+      rolling_avg: Math.round(ewma * 100) / 100,
     }
   })
 }

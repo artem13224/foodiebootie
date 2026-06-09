@@ -8,6 +8,7 @@ import { getGoalETA, getRollingAverage } from '@/lib/science/tdee'
 import type { WeightLogEntry } from '@/lib/science/tdee'
 import { getAgeFromDOB } from '@/lib/science/rmr'
 import { clamp, localDateStr } from '@/lib/science/utils'
+import { computeWeeklyInsights } from '@/lib/science/weeklyInsights'
 import { useUnitSystem } from '@/contexts/UnitSystemContext'
 import type { GoalType, ActivityLevel } from '@/types'
 
@@ -281,38 +282,15 @@ export default function ProfilePage() {
     return endAvg - startAvg // positive = gained, negative = lost
   })()
 
-  // ── Weekly reflection strings ─────────────────────────────────────────────
+  // ── Weekly reflection strings (shared module) ─────────────────────────────
 
-  const loggingInsight = (() => {
-    const n = weekFoodDays
-    if (n === 7) return 'Perfect logging week — every day tracked.'
-    if (n >= 5) return `Strong week — ${n} of 7 days logged.`
-    if (n >= 3) return 'Partial week — data may be less reliable.'
-    return 'Not enough logged this week to draw conclusions.'
-  })()
-
-  const weightInsight = (() => {
-    if (weekWeightLogs.length < 2) return 'Log more weigh-ins for a reliable trend.'
-    if (weeklyWeightTrend == null) return null
-    const unitStr = unitSystem === 'imperial' ? 'lbs' : 'kg'
-    const delta = unitSystem === 'imperial'
-      ? Math.abs(Math.round(weeklyWeightTrend * 2.20462 * 10) / 10)
-      : Math.abs(Math.round(weeklyWeightTrend * 10) / 10)
-    const threshold = unitSystem === 'imperial' ? 0.22 : 0.1 // ~0.1 kg in chosen unit
-    if (Math.abs(weeklyWeightTrend) < 0.1) return 'Trend weight holding steady.'
-    if (weeklyWeightTrend < -0.05) return `Trend weight down ${delta} ${unitStr} this week.`
-    if (weeklyWeightTrend > 0.05) return `Trend weight up ${delta} ${unitStr} this week.`
-    return `Trend weight holding steady.`
-    void threshold
-  })()
-
-  const proteinInsight = (() => {
-    if (weekProteinDays === null) return null
-    const n = weekProteinDays
-    if (n >= Math.round(7 * 0.8)) return `Protein on point — hit target ${n} of 7 days.`
-    if (n >= Math.round(7 * 0.5)) return `Protein inconsistent — ${n} of 7 days on target.`
-    return `Protein low this week — ${n} of 7 days on target.`
-  })()
+  const { loggingInsight, weightInsight, proteinInsight } = computeWeeklyInsights({
+    weekFoodDays,
+    weekWeightLogs,
+    weeklyWeightTrendKg: weeklyWeightTrend,
+    weekProteinDays,
+    unitSystem,
+  })
 
   return (
     <div className="screen" style={{ paddingTop: 0 }}>
@@ -502,6 +480,37 @@ export default function ProfilePage() {
           </p>
         </div>
       )}
+
+      {/* ── Weekly Check-In entry ───────────────────────────────────── */}
+      <button
+        onClick={() => router.push('/weekly-checkin')}
+        style={{
+          width: '100%',
+          background: 'none',
+          border: '1px solid var(--color-border)',
+          cursor: 'pointer',
+          padding: '14px 16px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 'var(--space-3)',
+          textAlign: 'left',
+        }}
+      >
+        <span style={{
+          fontFamily: "'Barlow Condensed', sans-serif",
+          fontWeight: 700,
+          fontSize: '11px',
+          letterSpacing: '0.2em',
+          textTransform: 'uppercase',
+          color: 'var(--color-text)',
+        }}>
+          WEEKLY CHECK-IN
+        </span>
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ color: 'var(--color-text-dim)', flexShrink: 0 }}>
+          <path d="M4 2L8 6L4 10" stroke="currentColor" strokeWidth="1.5" />
+        </svg>
+      </button>
 
       {/* ── Weekly Check-In Panel ────────────────────────────────────── */}
       <div style={{ marginBottom: 'var(--space-5)', border: '1px solid var(--color-border)' }}>

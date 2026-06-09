@@ -2,6 +2,18 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { CHECKIN_STORAGE_KEY } from '@/app/(app)/weekly-checkin/page'
+import { localDateStr } from '@/lib/science/utils'
+
+/** Returns the Monday of the current week as YYYY-MM-DD. */
+function thisWeekMonday(): string {
+  const today = new Date()
+  const dow = (today.getDay() + 6) % 7
+  const mon = new Date(today)
+  mon.setDate(today.getDate() - dow)
+  return localDateStr(mon)
+}
 
 type Tab = {
   id: string
@@ -74,6 +86,12 @@ const TABS: Tab[] = [
 
 export default function TabBar() {
   const pathname = usePathname()
+  const [checkinPending, setCheckinPending] = useState(false)
+
+  useEffect(() => {
+    const stored = localStorage.getItem(CHECKIN_STORAGE_KEY)
+    setCheckinPending(!stored || stored < thisWeekMonday())
+  }, [pathname]) // re-evaluate whenever route changes (catches "Got It" acknowledgement)
 
   function isActive(tab: Tab) {
     if (tab.href === '/today') return pathname === '/today'
@@ -160,8 +178,20 @@ export default function TabBar() {
                 minWidth: '44px',
               }}
             >
-              <div style={{ height: '52px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ height: '52px', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
                 {tab.icon}
+                {/* Check-in pending badge on MORE tab */}
+                {tab.id === 'more' && checkinPending && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '10px',
+                    right: '-2px',
+                    width: '6px',
+                    height: '6px',
+                    background: 'var(--color-accent)',
+                    borderRadius: '50%',
+                  }} />
+                )}
               </div>
               <span style={{
                 fontFamily: "'Barlow Condensed', sans-serif",

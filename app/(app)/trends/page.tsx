@@ -33,7 +33,7 @@ export default function TrendsPage() {
     const supabase = createClient()
 
     type LatestRow = { id: string; calculated_at: string; tdee_kcal: number; daily_kcal_target: number | null; data_points: number; confidence: TDEEConf | null; adaptation_flag: boolean; method: string | null }
-    type HistoryRow = { calculated_at: string; tdee_kcal: number }
+    type HistoryRow = { calculated_at: string; tdee_kcal: number; notes: string | null }
 
     const [{ data: latest }, { data: history }] = await Promise.all([
       supabase
@@ -44,7 +44,7 @@ export default function TrendsPage() {
         .maybeSingle() as unknown as Promise<{ data: LatestRow | null; error: unknown }>,
       supabase
         .from('tdee_estimates')
-        .select('calculated_at, tdee_kcal')
+        .select('calculated_at, tdee_kcal, notes')
         .order('calculated_at', { ascending: true }) as unknown as Promise<{ data: HistoryRow[] | null; error: unknown }>,
     ])
 
@@ -62,10 +62,22 @@ export default function TrendsPage() {
     }
 
     setTdeeHistory(
-      (history ?? []).map(r => ({
-        date: r.calculated_at as string,
-        tdee_kcal: Number(r.tdee_kcal),
-      }))
+      (history ?? []).map(r => {
+        let formulaTdee: number | null = null
+        if (r.notes) {
+          try {
+            const parsed = JSON.parse(r.notes as string) as { formula_tdee?: number }
+            formulaTdee = parsed.formula_tdee != null ? Number(parsed.formula_tdee) : null
+          } catch {
+            // malformed notes — skip
+          }
+        }
+        return {
+          date: r.calculated_at as string,
+          tdee_kcal: Number(r.tdee_kcal),
+          formula_tdee: formulaTdee,
+        }
+      })
     )
     setTdeeLoading(false)
   }, [])
