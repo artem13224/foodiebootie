@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { localDateStr } from '@/lib/science/utils'
 import BarcodeScanner from '@/components/ui/BarcodeScanner'
 import WeightEntry from '@/components/forms/WeightEntry'
 import UnitPicker, { type Unit, toGrams } from '@/components/ui/UnitPicker'
@@ -78,7 +79,7 @@ function LogPageInner() {
   const searchParams = useSearchParams()
   const initialMeal = (searchParams.get('meal') as MealType) ?? 'breakfast'
   // When launched from the Today screen for a past date, use that date
-  const loggingDate = searchParams.get('date') ?? new Date().toISOString().split('T')[0]
+  const loggingDate = searchParams.get('date') ?? localDateStr()
 
   // View state
   const [view, setView] = useState<View>('search')
