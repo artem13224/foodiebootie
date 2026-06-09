@@ -71,7 +71,7 @@ function ChartTooltip({
       <div style={{ color: 'var(--color-text-dim)', marginBottom: '4px' }}>{label}</div>
       {payload.map(p => (
         <div key={p.name} style={{ color: p.color }}>
-          {p.name === 'avg' ? 'AVG' : 'SCALE'}: {toDisplay(p.value)} {unit.toUpperCase()}
+          {p.name === 'avg' ? 'EWMA' : 'SCALE'}: {toDisplay(p.value)} {unit.toUpperCase()}
         </div>
       ))}
     </div>
@@ -367,7 +367,7 @@ export default function WeightCalendarPage() {
           <div style={{ display: 'flex', gap: '16px', marginTop: '8px' }}>
             {[
               { color: 'var(--color-text-dim)', label: 'SCALE WEIGHT' },
-              { color: 'var(--color-accent)', label: '7-DAY AVERAGE' },
+              { color: 'var(--color-accent)', label: 'EWMA TREND' },
             ].map(({ color, label }) => (
               <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <div style={{ width: '12px', height: '2px', background: color }} />
