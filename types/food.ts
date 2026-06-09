@@ -1,7 +1,7 @@
 export interface FoodResult {
   id: string
-  /** usda = USDA FoodData Central, off = Open Food Facts, nutritionix = Nutritionix, custom = custom/recipe food */
-  source: 'usda' | 'off' | 'nutritionix' | 'custom'
+  /** usda = USDA FoodData Central, off = Open Food Facts, fatsecret = FatSecret, nutritionix = Nutritionix (restaurant), custom = custom/recipe food */
+  source: 'usda' | 'off' | 'fatsecret' | 'nutritionix' | 'custom'
   name: string
   brand?: string
   kcalPer100g: number

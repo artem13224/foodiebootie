@@ -382,9 +382,10 @@ function LogPageInner() {
 
   // ── Source badge color ────────────────────────────────────────────────────
   function sourceBadge(src: FoodResult['source']) {
-    if (src === 'off') return 'PACKAGED'
+    if (src === 'off')         return 'PACKAGED'
+    if (src === 'fatsecret')   return 'FATSECRET'
     if (src === 'nutritionix') return 'RESTAURANT'
-    if (src === 'custom') return 'MY FOODS'
+    if (src === 'custom')      return 'MY FOODS'
     return 'USDA'
   }
 

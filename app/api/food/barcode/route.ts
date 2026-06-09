@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { FoodResult } from '@/types/food'
+import { lookupBarcodeFatSecret, fatSecretToFoodResult } from '@/lib/fatsecret'
 
 function parseServingG(raw: string | undefined): number {
   if (!raw) return 100
@@ -14,7 +15,12 @@ function getNutrient(
   return nutrients.find(n => n.nutrientId === id)?.value ?? 0
 }
 
-/** Fetch one barcode from Open Food Facts (world instance) and return a FoodResult or null. */
+// ── 1. Open Food Facts ────────────────────────────────────────────────────────
+// world.openfoodfacts.org contains ALL products from all countries including
+// Canada — regional mirrors (ca., fr., etc.) are UI-only and don't add coverage.
+// iOS BarcodeDetector sometimes strips the leading zero from EAN-13 codes
+// (reads 12 digits instead of 13), so we try both forms.
+
 async function tryOFF(barcode: string): Promise<FoodResult | null> {
   try {
     const res = await fetch(
@@ -37,21 +43,74 @@ async function tryOFF(barcode: string): Promise<FoodResult | null> {
     if (kcal <= 0) return null
 
     return {
-      id: barcode,
-      source: 'off',
-      name: p.product_name || p.product_name_en || 'Unknown product',
-      brand: p.brands ?? undefined,
-      kcalPer100g: kcal,
-      proteinPer100g: n['proteins_100g'] ?? 0,
-      carbsPer100g: n['carbohydrates_100g'] ?? 0,
-      fatPer100g: n['fat_100g'] ?? 0,
-      fiberPer100g: n['fiber_100g'] ?? 0,
-      servingG: parseServingG(p.serving_size),
+      id:             barcode,
+      source:         'off',
+      name:           p.product_name || p.product_name_en || 'Unknown product',
+      brand:          p.brands ?? undefined,
+      kcalPer100g:    kcal,
+      proteinPer100g: n['proteins_100g']      ?? 0,
+      carbsPer100g:   n['carbohydrates_100g'] ?? 0,
+      fatPer100g:     n['fat_100g']           ?? 0,
+      fiberPer100g:   n['fiber_100g']         ?? 0,
+      servingG:       parseServingG(p.serving_size),
     }
   } catch {
     return null
   }
 }
+
+// ── 3. USDA Branded Foods ─────────────────────────────────────────────────────
+// Best coverage of US retail brands.
+// Free API key from api.data.gov — set USDA_API_KEY in .env.local.
+
+async function tryUSDA(code: string): Promise<FoodResult | null> {
+  try {
+    const apiKey = process.env.USDA_API_KEY ?? 'DEMO_KEY'
+    const usdaRes = await fetch(
+      `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(code)}&dataType=Branded&pageSize=5&api_key=${apiKey}`,
+      { next: { revalidate: 86400 } },
+    )
+    if (!usdaRes.ok) return null
+
+    const data = await usdaRes.json()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const foods: any[] = data.foods ?? []
+
+    // USDA may omit the leading zero on EAN-13 barcodes (UPC-A vs EAN-13)
+    const codeStripped = code.replace(/^0+/, '')
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const food = foods.find((f: any) =>
+      f.gtinUpc === code ||
+      f.gtinUpc === codeStripped ||
+      '0' + f.gtinUpc === code,
+    )
+    if (!food) return null
+
+    const nutrients: Array<{ nutrientId: number; value: number }> =
+      food.foodNutrients ?? []
+    const kcal = getNutrient(nutrients, 1008)
+    if (kcal <= 0) return null
+
+    return {
+      id:             String(food.fdcId),
+      source:         'usda',
+      name:           food.description,
+      brand:          food.brandOwner ?? food.brandName ?? undefined,
+      kcalPer100g:    kcal,
+      proteinPer100g: getNutrient(nutrients, 1003),
+      carbsPer100g:   getNutrient(nutrients, 1005),
+      fatPer100g:     getNutrient(nutrients, 1004),
+      fiberPer100g:   getNutrient(nutrients, 1079),
+      servingG:
+        food.servingSize && food.servingSizeUnit === 'g' ? food.servingSize : 100,
+    }
+  } catch {
+    return null
+  }
+}
+
+// ── Route handler ─────────────────────────────────────────────────────────────
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
@@ -61,66 +120,30 @@ export async function GET(request: Request) {
     return NextResponse.json({ food: null, error: 'Missing barcode' }, { status: 400 })
   }
 
-  // ── 1. Open Food Facts ────────────────────────────────────────────────────
-  // world.openfoodfacts.org contains ALL products from all countries including
-  // Canada — regional mirrors (ca., fr., etc.) are UI-only and don't add coverage.
-  // iOS BarcodeDetector sometimes strips the leading zero from EAN-13 codes
-  // (reads 12 digits instead of 13), so we try both forms.
-  const codeEan = code.length === 12 ? '0' + code : code  // normalise to EAN-13
-  const offResult = (await tryOFF(codeEan)) ?? (code !== codeEan ? await tryOFF(code) : null)
+  // Normalise to EAN-13: iOS BarcodeDetector strips leading zero (12 → 13 digits)
+  const codeEan = code.length === 12 ? '0' + code : code
+
+  // ── 1. Open Food Facts ──────────────────────────────────────────────────────
+  const offResult =
+    (await tryOFF(codeEan)) ??
+    (code !== codeEan ? await tryOFF(code) : null)
 
   if (offResult) return NextResponse.json({ food: offResult })
 
-  // ── 2. USDA Branded Foods (UPC / GTIN lookup) ─────────────────────────────
-  // Best coverage of US retail brands. Free API key from api.data.gov.
-  try {
-    const apiKey = process.env.USDA_API_KEY ?? 'DEMO_KEY'
-    const usdaRes = await fetch(
-      `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(code)}&dataType=Branded&pageSize=5&api_key=${apiKey}`,
-      { next: { revalidate: 86400 } },
-    )
-    if (usdaRes.ok) {
-      const data = await usdaRes.json()
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const foods: any[] = data.foods ?? []
+  // ── 2. FatSecret ────────────────────────────────────────────────────────────
+  const fsRaw =
+    (await lookupBarcodeFatSecret(codeEan)) ??
+    (code !== codeEan ? await lookupBarcodeFatSecret(code) : null)
 
-      // USDA may omit the leading zero on EAN-13 barcodes (UPC-A vs EAN-13)
-      const codeStripped = code.replace(/^0+/, '')
+  if (fsRaw) return NextResponse.json({ food: fatSecretToFoodResult(fsRaw) })
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const food = foods.find((f: any) =>
-        f.gtinUpc === code ||
-        f.gtinUpc === codeStripped ||
-        ('0' + f.gtinUpc) === code,
-      )
+  // ── 3. USDA Branded Foods ───────────────────────────────────────────────────
+  const usdaResult = await tryUSDA(codeEan)
+  if (usdaResult) return NextResponse.json({ food: usdaResult })
 
-      if (food) {
-        const nutrients: Array<{ nutrientId: number; value: number }> =
-          food.foodNutrients ?? []
-        const kcal = getNutrient(nutrients, 1008)
-        if (kcal > 0) {
-          const result: FoodResult = {
-            id: String(food.fdcId),
-            source: 'usda',
-            name: food.description,
-            brand: food.brandOwner ?? food.brandName ?? undefined,
-            kcalPer100g: kcal,
-            proteinPer100g: getNutrient(nutrients, 1003),
-            carbsPer100g: getNutrient(nutrients, 1005),
-            fatPer100g: getNutrient(nutrients, 1004),
-            fiberPer100g: getNutrient(nutrients, 1079),
-            servingG:
-              food.servingSize && food.servingSizeUnit === 'g'
-                ? food.servingSize
-                : 100,
-          }
-          return NextResponse.json({ food: result })
-        }
-      }
-    }
-  } catch {
-    // fall through
-  }
-
-  return NextResponse.json({ food: null })
+  // ── All sources exhausted ───────────────────────────────────────────────────
+  return NextResponse.json(
+    { food: null, error: 'Food not found', suggestion: 'Add it manually' },
+    { status: 404 },
+  )
 }
