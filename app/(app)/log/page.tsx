@@ -298,7 +298,7 @@ function LogPageInner() {
       return
     }
 
-    router.back()
+    window.location.href = '/today'
   }
 
   async function handleQuickAdd() {
@@ -331,7 +331,7 @@ function LogPageInner() {
       return
     }
 
-    router.back()
+    window.location.href = '/today'
   }
 
   async function handleCreateCustomFood() {
