@@ -4,11 +4,31 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import ProgressBar from '@/components/ui/ProgressBar'
-import { getGoalETA } from '@/lib/science/tdee'
+import { getGoalETA, getRollingAverage } from '@/lib/science/tdee'
+import type { WeightLogEntry } from '@/lib/science/tdee'
 import { getAgeFromDOB } from '@/lib/science/rmr'
-import { clamp } from '@/lib/science/utils'
+import { clamp, localDateStr } from '@/lib/science/utils'
 import { useUnitSystem } from '@/contexts/UnitSystemContext'
 import type { GoalType, ActivityLevel } from '@/types'
+
+// ── Week helpers ──────────────────────────────────────────────────────────────
+
+/** Returns the Monday of the current week as YYYY-MM-DD. */
+function currentWeekMonday(): string {
+  const today = new Date()
+  const dow = (today.getDay() + 6) % 7 // 0=Mon
+  const mon = new Date(today)
+  mon.setDate(today.getDate() - dow)
+  return localDateStr(mon)
+}
+
+/** Returns the Sunday of the current week as YYYY-MM-DD. */
+function currentWeekSunday(): string {
+  const mon = currentWeekMonday()
+  const [y, m, d] = mon.split('-').map(Number)
+  const sun = new Date(y, m - 1, d + 6)
+  return localDateStr(sun)
+}
 
 interface Profile {
   id: string
@@ -60,6 +80,12 @@ export default function ProfilePage() {
   const [tdee, setTDEE] = useState<TDEEEstimate | null>(null)
   const [loading, setLoading] = useState(true)
   const [loggingOut, setLoggingOut] = useState(false)
+  const [weeklyExpanded, setWeeklyExpanded] = useState(false)
+
+  // Weekly data
+  const [weekFoodDays, setWeekFoodDays] = useState(0)   // days with ≥1 food log entry
+  const [weekWeightLogs, setWeekWeightLogs] = useState<WeightLog[]>([])
+  const [weekProteinDays, setWeekProteinDays] = useState<number | null>(null) // null = no target
 
   useEffect(() => {
     async function load() {
@@ -68,8 +94,12 @@ export default function ProfilePage() {
       type PRow = { id: string; username: string; sex: string | null; date_of_birth: string | null; height_cm: number | null; activity_level: string | null; goal_type: string | null; goal_weight_kg: number | null; goal_rate_kg_per_week: number | null; goal_start_date: string | null; protein_g_per_kg_lbm: number | null; unit_system: string | null }
       type WRow = { logged_at: string; weight_kg: number }
       type TRow = { adaptation_flag: boolean; data_points: number; daily_kcal_target: number | null }
+      type FRow = { logged_date: string; protein_g: number }
 
-      const [{ data: profileData }, { data: weightsData }, { data: tdeeData }] = await Promise.all([
+      const weekMon = currentWeekMonday()
+      const weekSun = currentWeekSunday()
+
+      const [{ data: profileData }, { data: weightsData }, { data: tdeeData }, { data: weekFoodData }] = await Promise.all([
         supabase.from('profiles').select('*').maybeSingle() as unknown as Promise<{ data: PRow | null; error: unknown }>,
         supabase.from('weight_logs').select('logged_at, weight_kg').order('logged_at', { ascending: true }) as unknown as Promise<{ data: WRow[] | null; error: unknown }>,
         supabase
@@ -78,6 +108,11 @@ export default function ProfilePage() {
           .order('calculated_at', { ascending: false })
           .limit(1)
           .maybeSingle() as unknown as Promise<{ data: TRow | null; error: unknown }>,
+        supabase
+          .from('food_logs')
+          .select('logged_date, protein_g')
+          .gte('logged_date', weekMon)
+          .lte('logged_date', weekSun) as unknown as Promise<{ data: FRow[] | null; error: unknown }>,
       ])
 
       if (profileData) {
@@ -110,6 +145,42 @@ export default function ProfilePage() {
           data_points: tdeeData.data_points,
           daily_kcal_target: tdeeData.daily_kcal_target ? Number(tdeeData.daily_kcal_target) : null,
         })
+      }
+
+      // ── Weekly data processing ──────────────────────────────────────────
+      const allWeights = (weightsData ?? []).map(r => ({
+        logged_at: r.logged_at as string,
+        weight_kg: Number(r.weight_kg),
+      }))
+      const thisWeekWeights = allWeights.filter(
+        w => w.logged_at >= weekMon && w.logged_at <= weekSun
+      )
+      setWeekWeightLogs(thisWeekWeights)
+
+      const foodRows = weekFoodData ?? []
+      const daysWithFood = new Set(foodRows.map(r => r.logged_date)).size
+      setWeekFoodDays(daysWithFood)
+
+      // Protein adherence — only if profile has a protein target AND we have body weight
+      const pTarget = profileData?.protein_g_per_kg_lbm
+        ? Number(profileData.protein_g_per_kg_lbm)
+        : null
+      const bwKg = allWeights.length > 0
+        ? allWeights[allWeights.length - 1].weight_kg
+        : null
+
+      if (pTarget && bwKg) {
+        // Rough protein target in grams (using body weight as proxy for LBM)
+        const dailyTargetG = pTarget * bwKg * 0.85 // ~85% of BW as proxy for LBM
+        // Group food_logs by day, sum protein
+        const proteinByDay = new Map<string, number>()
+        for (const row of foodRows) {
+          proteinByDay.set(row.logged_date, (proteinByDay.get(row.logged_date) ?? 0) + Number(row.protein_g))
+        }
+        const daysOnTarget = Array.from(proteinByDay.values()).filter(g => g >= dailyTargetG).length
+        setWeekProteinDays(daysOnTarget)
+      } else {
+        setWeekProteinDays(null)
       }
 
       setLoading(false)
@@ -195,6 +266,53 @@ export default function ProfilePage() {
 
   const goalLabel = profile?.goal_type ? GOAL_LABELS[profile.goal_type] : '—'
   const activityLabel = profile?.activity_level ? ACTIVITY_LABELS[profile.activity_level] : '—'
+
+  // ── Weekly computations ───────────────────────────────────────────────────
+
+  // Net weight trend this week (start vs end rolling avg)
+  const weeklyWeightTrend = (() => {
+    if (weekWeightLogs.length < 2) return null
+    // Use all-time rolling avg for accuracy
+    const allRolling = getRollingAverage(weightLogs as WeightLogEntry[])
+    const rollingByDate = new Map(allRolling.map(p => [p.date, p.rolling_avg]))
+    const sorted = [...weekWeightLogs].sort((a, b) => a.logged_at.localeCompare(b.logged_at))
+    const startAvg = rollingByDate.get(sorted[0].logged_at) ?? sorted[0].weight_kg
+    const endAvg = rollingByDate.get(sorted[sorted.length - 1].logged_at) ?? sorted[sorted.length - 1].weight_kg
+    return endAvg - startAvg // positive = gained, negative = lost
+  })()
+
+  // ── Weekly reflection strings ─────────────────────────────────────────────
+
+  const loggingInsight = (() => {
+    const n = weekFoodDays
+    if (n === 7) return 'Perfect logging week — every day tracked.'
+    if (n >= 5) return `Strong week — ${n} of 7 days logged.`
+    if (n >= 3) return 'Partial week — data may be less reliable.'
+    return 'Not enough logged this week to draw conclusions.'
+  })()
+
+  const weightInsight = (() => {
+    if (weekWeightLogs.length < 2) return 'Log more weigh-ins for a reliable trend.'
+    if (weeklyWeightTrend == null) return null
+    const unitStr = unitSystem === 'imperial' ? 'lbs' : 'kg'
+    const delta = unitSystem === 'imperial'
+      ? Math.abs(Math.round(weeklyWeightTrend * 2.20462 * 10) / 10)
+      : Math.abs(Math.round(weeklyWeightTrend * 10) / 10)
+    const threshold = unitSystem === 'imperial' ? 0.22 : 0.1 // ~0.1 kg in chosen unit
+    if (Math.abs(weeklyWeightTrend) < 0.1) return 'Trend weight holding steady.'
+    if (weeklyWeightTrend < -0.05) return `Trend weight down ${delta} ${unitStr} this week.`
+    if (weeklyWeightTrend > 0.05) return `Trend weight up ${delta} ${unitStr} this week.`
+    return `Trend weight holding steady.`
+    void threshold
+  })()
+
+  const proteinInsight = (() => {
+    if (weekProteinDays === null) return null
+    const n = weekProteinDays
+    if (n >= Math.round(7 * 0.8)) return `Protein on point — hit target ${n} of 7 days.`
+    if (n >= Math.round(7 * 0.5)) return `Protein inconsistent — ${n} of 7 days on target.`
+    return `Protein low this week — ${n} of 7 days on target.`
+  })()
 
   return (
     <div className="screen" style={{ paddingTop: 0 }}>
@@ -314,6 +432,47 @@ export default function ProfilePage() {
         </div>
       )}
 
+      {/* ── Goal setup state (no goal data yet) ─────────────────────── */}
+      {!profile?.goal_type && (
+        <div style={{
+          border: '1px solid var(--color-border)',
+          padding: '16px',
+          marginBottom: 'var(--space-5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}>
+          <span style={{
+            fontFamily: "'Barlow Condensed', sans-serif",
+            fontWeight: 700,
+            fontSize: '12px',
+            letterSpacing: '0.1em',
+            color: 'var(--color-text-dim)',
+          }}>
+            Set your goal to unlock progress tracking.
+          </span>
+          <button
+            onClick={() => router.push('/profile/edit')}
+            style={{
+              background: 'var(--color-accent)',
+              border: 'none',
+              color: '#fff',
+              fontFamily: "'Barlow Condensed', sans-serif",
+              fontWeight: 700,
+              fontSize: '10px',
+              letterSpacing: '0.15em',
+              textTransform: 'uppercase',
+              padding: '6px 12px',
+              cursor: 'pointer',
+              flexShrink: 0,
+              marginLeft: '12px',
+            }}
+          >
+            SET GOAL
+          </button>
+        </div>
+      )}
+
       {/* ── Adaptation warning ───────────────────────────────────────── */}
       {tdee?.adaptation_flag && (
         <div style={{
@@ -343,6 +502,91 @@ export default function ProfilePage() {
           </p>
         </div>
       )}
+
+      {/* ── Weekly Check-In Panel ────────────────────────────────────── */}
+      <div style={{ marginBottom: 'var(--space-5)', border: '1px solid var(--color-border)' }}>
+        {/* Collapse toggle header */}
+        <button
+          onClick={() => setWeeklyExpanded(e => !e)}
+          style={{
+            width: '100%',
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            padding: '14px 16px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            textAlign: 'left',
+          }}
+        >
+          <span style={{
+            fontFamily: "'Barlow Condensed', sans-serif",
+            fontWeight: 700,
+            fontSize: '11px',
+            letterSpacing: '0.2em',
+            textTransform: 'uppercase',
+            color: 'var(--color-text)',
+          }}>
+            THIS WEEK
+          </span>
+          <svg
+            width="12" height="12" viewBox="0 0 12 12" fill="none"
+            style={{ color: 'var(--color-text-dim)', transform: weeklyExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}
+          >
+            <path d="M2 4L6 8L10 4" stroke="currentColor" strokeWidth="1.5" />
+          </svg>
+        </button>
+
+        {weeklyExpanded && (
+          <div style={{ borderTop: '1px solid var(--color-border)', padding: '14px 16px' }}>
+            {/* 3b — Summary tiles */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1px', background: 'var(--color-border)', marginBottom: '16px' }}>
+              {[
+                { label: 'DAYS LOGGED', value: `${weekFoodDays}/7` },
+                { label: 'WEIGH-INS', value: `${weekWeightLogs.length}/7` },
+                {
+                  label: 'WT TREND',
+                  value: weeklyWeightTrend == null
+                    ? '—'
+                    : weeklyWeightTrend === 0 || Math.abs(weeklyWeightTrend) < 0.05
+                    ? '—'
+                    : `${weeklyWeightTrend > 0 ? '+' : ''}${unitSystem === 'imperial'
+                        ? Math.round(weeklyWeightTrend * 2.20462 * 10) / 10
+                        : Math.round(weeklyWeightTrend * 10) / 10} ${unitSystem === 'imperial' ? 'LBS' : 'KG'}`,
+                },
+              ].map(stat => (
+                <div key={stat.label} style={{ background: 'var(--color-bg)', padding: '10px 8px' }}>
+                  <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '8px', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--color-text-dim)', marginBottom: '3px' }}>
+                    {stat.label}
+                  </div>
+                  <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '18px', color: 'var(--color-text)', lineHeight: 1 }}>
+                    {stat.value}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* 3c — Weekly Reflection */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {[loggingInsight, weightInsight, proteinInsight]
+                .filter((s): s is string => s != null)
+                .map((insight, i) => (
+                  <div key={i} style={{
+                    fontFamily: "'Barlow', sans-serif",
+                    fontSize: '12px',
+                    lineHeight: 1.6,
+                    color: 'var(--color-text-dim)',
+                    paddingLeft: '10px',
+                    borderLeft: '2px solid var(--color-border)',
+                  }}>
+                    {insight}
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* ── Vitals ───────────────────────────────────────────────────── */}
       <div style={{ marginBottom: 'var(--space-5)' }}>

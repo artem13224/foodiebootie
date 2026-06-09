@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useTodayLog } from '@/hooks/useTodayLog'
 import { useAdaptiveTDEE } from '@/hooks/useAdaptiveTDEE'
+import { useUnitSystem } from '@/contexts/UnitSystemContext'
 import CalorieHero from '@/components/ui/CalorieHero'
 import MacroRing from '@/components/ui/MacroRing'
 import MealRow from '@/components/ui/MealRow'
@@ -54,10 +55,13 @@ function formatDateLabel(dateStr: string): string {
 export default function TodayPage() {
   const router = useRouter()
   const todayStr = localDateStr()
+  const { displayWeight, weightUnit } = useUnitSystem()
 
   const [selectedDate, setSelectedDate] = useState(todayStr)
   const [animate, setAnimate] = useState(false)
   const [username, setUsername] = useState('')
+  const [todayWeightKg, setTodayWeightKg] = useState<number | null>(null)
+  const [todayWeightTime, setTodayWeightTime] = useState<string | null>(null)
 
   const isToday = selectedDate === todayStr
   const isPastDate = selectedDate < todayStr
@@ -78,6 +82,29 @@ export default function TodayPage() {
       if (data) setUsername((data as { username: string }).username)
     })
   }, [])
+
+  // Fetch today's weight log
+  useEffect(() => {
+    const supabase = createClient()
+    type WRow = { weight_kg: number; created_at: string }
+    ;(supabase
+      .from('weight_logs')
+      .select('weight_kg, created_at')
+      .eq('logged_at', todayStr)
+      .maybeSingle() as unknown as Promise<{ data: WRow | null }>)
+      .then(({ data }) => {
+        if (data) {
+          setTodayWeightKg(Number(data.weight_kg))
+          const d = new Date(data.created_at)
+          setTodayWeightTime(
+            d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+          )
+        } else {
+          setTodayWeightKg(null)
+          setTodayWeightTime(null)
+        }
+      })
+  }, [todayStr])
 
   const goDay = useCallback((delta: number) => {
     setSelectedDate(prev => {
@@ -293,6 +320,68 @@ export default function TodayPage() {
           animate={animate}
         />
       </div>
+
+      {/* ── Weight widget ────────────────────────────────────────────────── */}
+      <button
+        onClick={() => router.push('/weight')}
+        style={{
+          width: '100%',
+          background: 'none',
+          border: 'none',
+          borderBottom: '1px solid var(--color-border-soft)',
+          cursor: 'pointer',
+          padding: 'var(--space-4) 0',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          textAlign: 'left',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+          {todayWeightKg != null ? (
+            <>
+              <span style={{
+                fontFamily: "'Bebas Neue', sans-serif",
+                fontSize: '26px',
+                letterSpacing: '-0.01em',
+                color: 'var(--color-text)',
+                lineHeight: 1,
+              }}>
+                {weightUnit === 'lbs'
+                  ? Math.round(todayWeightKg * 2.20462 * 10) / 10
+                  : todayWeightKg.toFixed(1)}
+              </span>
+              <span style={{
+                fontFamily: "'Barlow Condensed', sans-serif",
+                fontWeight: 700,
+                fontSize: '11px',
+                letterSpacing: '0.15em',
+                textTransform: 'uppercase',
+                color: 'var(--color-text-dim)',
+              }}>
+                {weightUnit.toUpperCase()} · LOGGED {todayWeightTime}
+              </span>
+            </>
+          ) : (
+            <span style={{
+              fontFamily: "'Barlow Condensed', sans-serif",
+              fontWeight: 700,
+              fontSize: '13px',
+              letterSpacing: '0.2em',
+              textTransform: 'uppercase',
+              color: 'var(--color-text-dim)',
+            }}>
+              Log today&apos;s weight
+            </span>
+          )}
+        </div>
+        {/* Scale icon */}
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" style={{ color: 'var(--color-text-dim)', flexShrink: 0 }}>
+          <rect x="2" y="3" width="14" height="12" stroke="currentColor" strokeWidth="1.3" />
+          <path d="M5 9H13M5 12H10" stroke="currentColor" strokeWidth="1.2" />
+          <path d="M7 3V6M11 3V6" stroke="currentColor" strokeWidth="1.2" />
+        </svg>
+      </button>
 
       {/* ── Daily log ────────────────────────────────────────────────────── */}
       <div>
