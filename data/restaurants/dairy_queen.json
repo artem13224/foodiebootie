@@ -1,0 +1,14 @@
+[
+  { "name": "DQ Burger", "brand": "Dairy Queen", "serving_size": 155, "serving_unit": "g", "calories": 350, "protein": 18, "carbs": 32, "fat": 16, "fiber": 1, "sugar": 6, "sodium": 610, "source": "seeded" },
+  { "name": "Double Cheeseburger", "brand": "Dairy Queen", "serving_size": 275, "serving_unit": "g", "calories": 590, "protein": 34, "carbs": 33, "fat": 34, "fiber": 1, "sugar": 7, "sodium": 1200, "source": "seeded" },
+  { "name": "Quarter Pound GrillBurger", "brand": "Dairy Queen", "serving_size": 208, "serving_unit": "g", "calories": 510, "protein": 26, "carbs": 38, "fat": 28, "fiber": 2, "sugar": 9, "sodium": 930, "source": "seeded" },
+  { "name": "Chicken Sandwich", "brand": "Dairy Queen", "serving_size": 207, "serving_unit": "g", "calories": 490, "protein": 24, "carbs": 51, "fat": 21, "fiber": 2, "sugar": 8, "sodium": 980, "source": "seeded" },
+  { "name": "Chicken Strip Basket (3 piece)", "brand": "Dairy Queen", "serving_size": 310, "serving_unit": "g", "calories": 700, "protein": 35, "carbs": 61, "fat": 33, "fiber": 3, "sugar": 4, "sodium": 1430, "source": "seeded" },
+  { "name": "Medium Fries", "brand": "Dairy Queen", "serving_size": 135, "serving_unit": "g", "calories": 380, "protein": 5, "carbs": 50, "fat": 18, "fiber": 4, "sugar": 0, "sodium": 580, "source": "seeded" },
+  { "name": "Poutine (Regular)", "brand": "Dairy Queen", "serving_size": 380, "serving_unit": "g", "calories": 630, "protein": 20, "carbs": 74, "fat": 29, "fiber": 5, "sugar": 4, "sodium": 1610, "source": "seeded" },
+  { "name": "Vanilla Soft Serve Cone (Small)", "brand": "Dairy Queen", "serving_size": 156, "serving_unit": "g", "calories": 230, "protein": 6, "carbs": 36, "fat": 7, "fiber": 0, "sugar": 25, "sodium": 115, "source": "seeded" },
+  { "name": "Chocolate Dipped Cone (Medium)", "brand": "Dairy Queen", "serving_size": 246, "serving_unit": "g", "calories": 490, "protein": 10, "carbs": 68, "fat": 21, "fiber": 1, "sugar": 55, "sodium": 220, "source": "seeded" },
+  { "name": "Oreo Blizzard (Medium)", "brand": "Dairy Queen", "serving_size": 385, "serving_unit": "g", "calories": 760, "protein": 17, "carbs": 105, "fat": 30, "fiber": 1, "sugar": 76, "sodium": 500, "source": "seeded" },
+  { "name": "Choco Brownie Extreme Blizzard (Medium)", "brand": "Dairy Queen", "serving_size": 393, "serving_unit": "g", "calories": 850, "protein": 16, "carbs": 120, "fat": 34, "fiber": 2, "sugar": 88, "sodium": 380, "source": "seeded" },
+  { "name": "Peanut Buster Parfait", "brand": "Dairy Queen", "serving_size": 359, "serving_unit": "g", "calories": 710, "protein": 16, "carbs": 102, "fat": 28, "fiber": 2, "sugar": 75, "sodium": 510, "source": "seeded" }
+]

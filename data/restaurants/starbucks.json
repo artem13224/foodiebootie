@@ -1,0 +1,17 @@
+[
+  { "name": "Caffe Latte Grande (2% milk)", "brand": "Starbucks", "serving_size": 473, "serving_unit": "ml", "calories": 190, "protein": 13, "carbs": 19, "fat": 7, "fiber": 0, "sugar": 18, "sodium": 170, "source": "seeded" },
+  { "name": "Caffe Mocha Grande (2% milk)", "brand": "Starbucks", "serving_size": 473, "serving_unit": "ml", "calories": 290, "protein": 12, "carbs": 43, "fat": 9, "fiber": 1, "sugar": 33, "sodium": 170, "source": "seeded" },
+  { "name": "Vanilla Latte Grande (2% milk)", "brand": "Starbucks", "serving_size": 473, "serving_unit": "ml", "calories": 250, "protein": 13, "carbs": 35, "fat": 7, "fiber": 0, "sugar": 34, "sodium": 170, "source": "seeded" },
+  { "name": "Caramel Macchiato Grande (2% milk)", "brand": "Starbucks", "serving_size": 473, "serving_unit": "ml", "calories": 250, "protein": 10, "carbs": 34, "fat": 7, "fiber": 0, "sugar": 33, "sodium": 150, "source": "seeded" },
+  { "name": "Pumpkin Spice Latte Grande (2% milk)", "brand": "Starbucks", "serving_size": 473, "serving_unit": "ml", "calories": 380, "protein": 14, "carbs": 52, "fat": 14, "fiber": 0, "sugar": 50, "sodium": 240, "source": "seeded" },
+  { "name": "Caramel Frappuccino Grande", "brand": "Starbucks", "serving_size": 473, "serving_unit": "ml", "calories": 380, "protein": 5, "carbs": 65, "fat": 13, "fiber": 0, "sugar": 54, "sodium": 270, "source": "seeded" },
+  { "name": "Pink Drink Grande", "brand": "Starbucks", "serving_size": 473, "serving_unit": "ml", "calories": 140, "protein": 2, "carbs": 27, "fat": 2, "fiber": 1, "sugar": 24, "sodium": 95, "source": "seeded" },
+  { "name": "Cold Brew Grande", "brand": "Starbucks", "serving_size": 473, "serving_unit": "ml", "calories": 5, "protein": 0, "carbs": 0, "fat": 0, "fiber": 0, "sugar": 0, "sodium": 15, "source": "seeded" },
+  { "name": "Iced Coffee Grande", "brand": "Starbucks", "serving_size": 473, "serving_unit": "ml", "calories": 80, "protein": 1, "carbs": 20, "fat": 0, "fiber": 0, "sugar": 20, "sodium": 15, "source": "seeded" },
+  { "name": "Espresso Doppio", "brand": "Starbucks", "serving_size": 60, "serving_unit": "ml", "calories": 10, "protein": 1, "carbs": 2, "fat": 0, "fiber": 0, "sugar": 0, "sodium": 5, "source": "seeded" },
+  { "name": "Butter Croissant", "brand": "Starbucks", "serving_size": 74, "serving_unit": "g", "calories": 260, "protein": 5, "carbs": 29, "fat": 14, "fiber": 2, "sugar": 5, "sodium": 230, "source": "seeded" },
+  { "name": "Blueberry Muffin", "brand": "Starbucks", "serving_size": 113, "serving_unit": "g", "calories": 380, "protein": 6, "carbs": 56, "fat": 16, "fiber": 2, "sugar": 33, "sodium": 370, "source": "seeded" },
+  { "name": "Chocolate Chip Cookie", "brand": "Starbucks", "serving_size": 90, "serving_unit": "g", "calories": 400, "protein": 5, "carbs": 58, "fat": 17, "fiber": 2, "sugar": 34, "sodium": 310, "source": "seeded" },
+  { "name": "Spinach Feta Wrap", "brand": "Starbucks", "serving_size": 195, "serving_unit": "g", "calories": 290, "protein": 19, "carbs": 33, "fat": 10, "fiber": 5, "sugar": 4, "sodium": 830, "source": "seeded" },
+  { "name": "Egg & Cheddar Protein Box", "brand": "Starbucks", "serving_size": 214, "serving_unit": "g", "calories": 470, "protein": 23, "carbs": 46, "fat": 22, "fiber": 5, "sugar": 14, "sodium": 560, "source": "seeded" }
+]

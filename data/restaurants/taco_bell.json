@@ -1,0 +1,15 @@
+[
+  { "name": "Crunchy Taco", "brand": "Taco Bell", "serving_size": 92, "serving_unit": "g", "calories": 170, "protein": 8, "carbs": 13, "fat": 9, "fiber": 3, "sugar": 1, "sodium": 310, "source": "seeded" },
+  { "name": "Soft Taco", "brand": "Taco Bell", "serving_size": 99, "serving_unit": "g", "calories": 180, "protein": 9, "carbs": 20, "fat": 7, "fiber": 3, "sugar": 2, "sodium": 530, "source": "seeded" },
+  { "name": "Crunchwrap Supreme", "brand": "Taco Bell", "serving_size": 242, "serving_unit": "g", "calories": 540, "protein": 18, "carbs": 72, "fat": 21, "fiber": 6, "sugar": 5, "sodium": 1120, "source": "seeded" },
+  { "name": "Cheesy Gordita Crunch", "brand": "Taco Bell", "serving_size": 194, "serving_unit": "g", "calories": 490, "protein": 20, "carbs": 56, "fat": 22, "fiber": 6, "sugar": 6, "sodium": 740, "source": "seeded" },
+  { "name": "Burrito Supreme", "brand": "Taco Bell", "serving_size": 248, "serving_unit": "g", "calories": 400, "protein": 17, "carbs": 51, "fat": 14, "fiber": 8, "sugar": 4, "sodium": 1020, "source": "seeded" },
+  { "name": "Bean Burrito", "brand": "Taco Bell", "serving_size": 198, "serving_unit": "g", "calories": 350, "protein": 13, "carbs": 57, "fat": 8, "fiber": 10, "sugar": 3, "sodium": 1000, "source": "seeded" },
+  { "name": "Chalupa Supreme", "brand": "Taco Bell", "serving_size": 153, "serving_unit": "g", "calories": 370, "protein": 15, "carbs": 39, "fat": 18, "fiber": 4, "sugar": 4, "sodium": 630, "source": "seeded" },
+  { "name": "Mexican Pizza", "brand": "Taco Bell", "serving_size": 216, "serving_unit": "g", "calories": 510, "protein": 20, "carbs": 56, "fat": 24, "fiber": 7, "sugar": 5, "sodium": 1010, "source": "seeded" },
+  { "name": "Nachos BellGrande", "brand": "Taco Bell", "serving_size": 308, "serving_unit": "g", "calories": 760, "protein": 20, "carbs": 86, "fat": 39, "fiber": 11, "sugar": 4, "sodium": 1300, "source": "seeded" },
+  { "name": "Chicken Power Bowl", "brand": "Taco Bell", "serving_size": 480, "serving_unit": "g", "calories": 640, "protein": 44, "carbs": 58, "fat": 24, "fiber": 9, "sugar": 5, "sodium": 1860, "source": "seeded" },
+  { "name": "Chips and Nacho Cheese Sauce", "brand": "Taco Bell", "serving_size": 113, "serving_unit": "g", "calories": 430, "protein": 6, "carbs": 53, "fat": 22, "fiber": 3, "sugar": 1, "sodium": 810, "source": "seeded" },
+  { "name": "Cinnamon Twists", "brand": "Taco Bell", "serving_size": 35, "serving_unit": "g", "calories": 170, "protein": 1, "carbs": 26, "fat": 7, "fiber": 1, "sugar": 8, "sodium": 200, "source": "seeded" },
+  { "name": "Quesadilla - Chicken", "brand": "Taco Bell", "serving_size": 184, "serving_unit": "g", "calories": 510, "protein": 28, "carbs": 40, "fat": 27, "fiber": 3, "sugar": 3, "sodium": 1180, "source": "seeded" }
+]

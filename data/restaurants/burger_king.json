@@ -1,0 +1,14 @@
+[
+  { "name": "Whopper", "brand": "Burger King", "serving_size": 290, "serving_unit": "g", "calories": 660, "protein": 28, "carbs": 50, "fat": 40, "fiber": 2, "sugar": 11, "sodium": 980, "source": "seeded" },
+  { "name": "Double Whopper", "brand": "Burger King", "serving_size": 396, "serving_unit": "g", "calories": 900, "protein": 47, "carbs": 50, "fat": 58, "fiber": 2, "sugar": 11, "sodium": 1100, "source": "seeded" },
+  { "name": "Whopper Jr.", "brand": "Burger King", "serving_size": 155, "serving_unit": "g", "calories": 340, "protein": 15, "carbs": 28, "fat": 20, "fiber": 1, "sugar": 7, "sodium": 500, "source": "seeded" },
+  { "name": "Impossible Whopper", "brand": "Burger King", "serving_size": 308, "serving_unit": "g", "calories": 630, "protein": 25, "carbs": 58, "fat": 34, "fiber": 4, "sugar": 12, "sodium": 1080, "source": "seeded" },
+  { "name": "Original Chicken Sandwich", "brand": "Burger King", "serving_size": 195, "serving_unit": "g", "calories": 470, "protein": 22, "carbs": 52, "fat": 19, "fiber": 2, "sugar": 5, "sodium": 920, "source": "seeded" },
+  { "name": "Crispy Chicken Jr.", "brand": "Burger King", "serving_size": 133, "serving_unit": "g", "calories": 340, "protein": 16, "carbs": 36, "fat": 14, "fiber": 1, "sugar": 5, "sodium": 630, "source": "seeded" },
+  { "name": "10 Piece Chicken Nuggets", "brand": "Burger King", "serving_size": 176, "serving_unit": "g", "calories": 430, "protein": 24, "carbs": 30, "fat": 24, "fiber": 1, "sugar": 0, "sodium": 910, "source": "seeded" },
+  { "name": "Medium French Fries", "brand": "Burger King", "serving_size": 117, "serving_unit": "g", "calories": 320, "protein": 4, "carbs": 45, "fat": 14, "fiber": 4, "sugar": 0, "sodium": 520, "source": "seeded" },
+  { "name": "Large French Fries", "brand": "Burger King", "serving_size": 153, "serving_unit": "g", "calories": 430, "protein": 5, "carbs": 59, "fat": 19, "fiber": 5, "sugar": 0, "sodium": 680, "source": "seeded" },
+  { "name": "Medium Onion Rings", "brand": "Burger King", "serving_size": 91, "serving_unit": "g", "calories": 320, "protein": 5, "carbs": 40, "fat": 16, "fiber": 2, "sugar": 4, "sodium": 680, "source": "seeded" },
+  { "name": "Croissan'wich Sausage Egg Cheese", "brand": "Burger King", "serving_size": 156, "serving_unit": "g", "calories": 480, "protein": 18, "carbs": 28, "fat": 35, "fiber": 1, "sugar": 5, "sodium": 810, "source": "seeded" },
+  { "name": "Chocolate Frosty Shake (Medium)", "brand": "Burger King", "serving_size": 398, "serving_unit": "g", "calories": 580, "protein": 13, "carbs": 95, "fat": 16, "fiber": 2, "sugar": 76, "sodium": 430, "source": "seeded" }
+]

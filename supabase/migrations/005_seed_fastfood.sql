@@ -3,9 +3,9 @@
 -- Run once in Supabase Dashboard → SQL Editor.
 -- Safe to re-run: uses INSERT ... ON CONFLICT DO NOTHING.
 
--- Add unique constraint so re-runs are idempotent
-ALTER TABLE custom_foods
-  ADD CONSTRAINT IF NOT EXISTS custom_foods_name_brand_unique UNIQUE (name, brand);
+-- Add unique index so re-runs are idempotent (IF NOT EXISTS only valid on CREATE INDEX)
+CREATE UNIQUE INDEX IF NOT EXISTS custom_foods_name_brand_unique
+  ON custom_foods (name, brand);
 
 INSERT INTO custom_foods (
   name, brand,

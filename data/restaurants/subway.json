@@ -1,0 +1,14 @@
+[
+  { "name": "6\" Italian BMT", "brand": "Subway", "serving_size": 236, "serving_unit": "g", "calories": 460, "protein": 23, "carbs": 46, "fat": 20, "fiber": 3, "sugar": 9, "sodium": 1120, "source": "seeded" },
+  { "name": "6\" Meatball Marinara", "brand": "Subway", "serving_size": 362, "serving_unit": "g", "calories": 480, "protein": 23, "carbs": 67, "fat": 14, "fiber": 5, "sugar": 14, "sodium": 980, "source": "seeded" },
+  { "name": "6\" Spicy Italian", "brand": "Subway", "serving_size": 214, "serving_unit": "g", "calories": 510, "protein": 23, "carbs": 45, "fat": 25, "fiber": 3, "sugar": 8, "sodium": 1210, "source": "seeded" },
+  { "name": "6\" Turkey Breast", "brand": "Subway", "serving_size": 214, "serving_unit": "g", "calories": 280, "protein": 19, "carbs": 47, "fat": 4, "fiber": 3, "sugar": 8, "sodium": 830, "source": "seeded" },
+  { "name": "6\" Chicken Teriyaki", "brand": "Subway", "serving_size": 248, "serving_unit": "g", "calories": 350, "protein": 25, "carbs": 51, "fat": 6, "fiber": 4, "sugar": 13, "sodium": 1070, "source": "seeded" },
+  { "name": "6\" Black Forest Ham", "brand": "Subway", "serving_size": 215, "serving_unit": "g", "calories": 270, "protein": 17, "carbs": 46, "fat": 4, "fiber": 3, "sugar": 8, "sodium": 840, "source": "seeded" },
+  { "name": "6\" Tuna", "brand": "Subway", "serving_size": 228, "serving_unit": "g", "calories": 450, "protein": 20, "carbs": 45, "fat": 22, "fiber": 3, "sugar": 8, "sodium": 590, "source": "seeded" },
+  { "name": "6\" Veggie Delite", "brand": "Subway", "serving_size": 175, "serving_unit": "g", "calories": 200, "protein": 8, "carbs": 43, "fat": 2, "fiber": 3, "sugar": 7, "sodium": 280, "source": "seeded" },
+  { "name": "6\" Steak & Cheese", "brand": "Subway", "serving_size": 242, "serving_unit": "g", "calories": 380, "protein": 28, "carbs": 47, "fat": 9, "fiber": 4, "sugar": 8, "sodium": 960, "source": "seeded" },
+  { "name": "Footlong Italian BMT", "brand": "Subway", "serving_size": 472, "serving_unit": "g", "calories": 920, "protein": 46, "carbs": 92, "fat": 40, "fiber": 6, "sugar": 18, "sodium": 2240, "source": "seeded" },
+  { "name": "Chocolate Chip Cookie", "brand": "Subway", "serving_size": 45, "serving_unit": "g", "calories": 200, "protein": 2, "carbs": 28, "fat": 9, "fiber": 1, "sugar": 17, "sodium": 150, "source": "seeded" },
+  { "name": "Chips", "brand": "Subway", "serving_size": 42, "serving_unit": "g", "calories": 210, "protein": 3, "carbs": 23, "fat": 12, "fiber": 1, "sugar": 1, "sodium": 230, "source": "seeded" }
+]

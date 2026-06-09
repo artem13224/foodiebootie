@@ -1,0 +1,18 @@
+[
+  { "name": "Big Mac", "brand": "McDonald's", "serving_size": 214, "serving_unit": "g", "calories": 550, "protein": 25, "carbs": 45, "fat": 30, "fiber": 3, "sugar": 9, "sodium": 1010, "source": "seeded" },
+  { "name": "Quarter Pounder with Cheese", "brand": "McDonald's", "serving_size": 199, "serving_unit": "g", "calories": 520, "protein": 30, "carbs": 42, "fat": 26, "fiber": 3, "sugar": 11, "sodium": 1100, "source": "seeded" },
+  { "name": "McDouble", "brand": "McDonald's", "serving_size": 176, "serving_unit": "g", "calories": 400, "protein": 22, "carbs": 33, "fat": 19, "fiber": 2, "sugar": 7, "sodium": 840, "source": "seeded" },
+  { "name": "Cheeseburger", "brand": "McDonald's", "serving_size": 114, "serving_unit": "g", "calories": 300, "protein": 15, "carbs": 33, "fat": 12, "fiber": 2, "sugar": 7, "sodium": 680, "source": "seeded" },
+  { "name": "McChicken", "brand": "McDonald's", "serving_size": 147, "serving_unit": "g", "calories": 370, "protein": 14, "carbs": 42, "fat": 16, "fiber": 2, "sugar": 5, "sodium": 680, "source": "seeded" },
+  { "name": "Crispy Chicken Sandwich", "brand": "McDonald's", "serving_size": 200, "serving_unit": "g", "calories": 560, "protein": 26, "carbs": 56, "fat": 25, "fiber": 3, "sugar": 8, "sodium": 1140, "source": "seeded" },
+  { "name": "Filet-O-Fish", "brand": "McDonald's", "serving_size": 145, "serving_unit": "g", "calories": 390, "protein": 15, "carbs": 41, "fat": 19, "fiber": 2, "sugar": 6, "sodium": 700, "source": "seeded" },
+  { "name": "10 Piece McNuggets", "brand": "McDonald's", "serving_size": 162, "serving_unit": "g", "calories": 420, "protein": 26, "carbs": 26, "fat": 24, "fiber": 1, "sugar": 0, "sodium": 800, "source": "seeded" },
+  { "name": "Medium French Fries", "brand": "McDonald's", "serving_size": 154, "serving_unit": "g", "calories": 340, "protein": 5, "carbs": 44, "fat": 16, "fiber": 4, "sugar": 0, "sodium": 330, "source": "seeded" },
+  { "name": "Large French Fries", "brand": "McDonald's", "serving_size": 196, "serving_unit": "g", "calories": 440, "protein": 6, "carbs": 57, "fat": 20, "fiber": 5, "sugar": 0, "sodium": 420, "source": "seeded" },
+  { "name": "Egg McMuffin", "brand": "McDonald's", "serving_size": 137, "serving_unit": "g", "calories": 300, "protein": 17, "carbs": 30, "fat": 12, "fiber": 2, "sugar": 3, "sodium": 760, "source": "seeded" },
+  { "name": "Sausage McMuffin with Egg", "brand": "McDonald's", "serving_size": 165, "serving_unit": "g", "calories": 480, "protein": 21, "carbs": 30, "fat": 29, "fiber": 2, "sugar": 3, "sodium": 1040, "source": "seeded" },
+  { "name": "Hash Brown", "brand": "McDonald's", "serving_size": 56, "serving_unit": "g", "calories": 150, "protein": 2, "carbs": 17, "fat": 9, "fiber": 2, "sugar": 0, "sodium": 330, "source": "seeded" },
+  { "name": "McFlurry Oreo (Regular)", "brand": "McDonald's", "serving_size": 348, "serving_unit": "g", "calories": 690, "protein": 13, "carbs": 104, "fat": 24, "fiber": 1, "sugar": 75, "sodium": 420, "source": "seeded" },
+  { "name": "Vanilla Soft Serve Cone", "brand": "McDonald's", "serving_size": 88, "serving_unit": "g", "calories": 200, "protein": 5, "carbs": 32, "fat": 6, "fiber": 0, "sugar": 23, "sodium": 120, "source": "seeded" },
+  { "name": "Apple Pie", "brand": "McDonald's", "serving_size": 77, "serving_unit": "g", "calories": 250, "protein": 3, "carbs": 36, "fat": 11, "fiber": 1, "sugar": 11, "sodium": 150, "source": "seeded" }
+]

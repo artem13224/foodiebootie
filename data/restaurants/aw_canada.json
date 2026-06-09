@@ -1,0 +1,15 @@
+[
+  { "name": "Teen Burger", "brand": "A&W Canada", "serving_size": 204, "serving_unit": "g", "calories": 510, "protein": 27, "carbs": 46, "fat": 23, "fiber": 2, "sugar": 11, "sodium": 1100, "source": "seeded" },
+  { "name": "Mama Burger", "brand": "A&W Canada", "serving_size": 147, "serving_unit": "g", "calories": 380, "protein": 20, "carbs": 32, "fat": 18, "fiber": 1, "sugar": 7, "sodium": 760, "source": "seeded" },
+  { "name": "Uncle Burger", "brand": "A&W Canada", "serving_size": 249, "serving_unit": "g", "calories": 640, "protein": 38, "carbs": 46, "fat": 34, "fiber": 2, "sugar": 11, "sodium": 1360, "source": "seeded" },
+  { "name": "Buddy Burger", "brand": "A&W Canada", "serving_size": 100, "serving_unit": "g", "calories": 280, "protein": 13, "carbs": 29, "fat": 13, "fiber": 1, "sugar": 6, "sodium": 530, "source": "seeded" },
+  { "name": "Mozza Burger", "brand": "A&W Canada", "serving_size": 195, "serving_unit": "g", "calories": 500, "protein": 26, "carbs": 46, "fat": 25, "fiber": 2, "sugar": 11, "sodium": 1180, "source": "seeded" },
+  { "name": "Beyond Meat Burger", "brand": "A&W Canada", "serving_size": 195, "serving_unit": "g", "calories": 510, "protein": 23, "carbs": 48, "fat": 25, "fiber": 5, "sugar": 11, "sodium": 1230, "source": "seeded" },
+  { "name": "Chicken Burger", "brand": "A&W Canada", "serving_size": 195, "serving_unit": "g", "calories": 430, "protein": 23, "carbs": 48, "fat": 17, "fiber": 2, "sugar": 7, "sodium": 980, "source": "seeded" },
+  { "name": "Spicy Habanero Chicken Burger", "brand": "A&W Canada", "serving_size": 208, "serving_unit": "g", "calories": 500, "protein": 25, "carbs": 49, "fat": 22, "fiber": 2, "sugar": 8, "sodium": 1140, "source": "seeded" },
+  { "name": "Regular Fries", "brand": "A&W Canada", "serving_size": 117, "serving_unit": "g", "calories": 290, "protein": 3, "carbs": 42, "fat": 12, "fiber": 3, "sugar": 0, "sodium": 390, "source": "seeded" },
+  { "name": "Onion Rings (Regular)", "brand": "A&W Canada", "serving_size": 119, "serving_unit": "g", "calories": 360, "protein": 5, "carbs": 41, "fat": 20, "fiber": 3, "sugar": 4, "sodium": 630, "source": "seeded" },
+  { "name": "Sweet Potato Fries (Regular)", "brand": "A&W Canada", "serving_size": 142, "serving_unit": "g", "calories": 320, "protein": 3, "carbs": 48, "fat": 13, "fiber": 4, "sugar": 16, "sodium": 400, "source": "seeded" },
+  { "name": "Poutine (Regular)", "brand": "A&W Canada", "serving_size": 302, "serving_unit": "g", "calories": 470, "protein": 14, "carbs": 59, "fat": 20, "fiber": 4, "sugar": 3, "sodium": 1160, "source": "seeded" },
+  { "name": "Root Beer Float (Medium)", "brand": "A&W Canada", "serving_size": 450, "serving_unit": "ml", "calories": 450, "protein": 7, "carbs": 86, "fat": 10, "fiber": 0, "sugar": 84, "sodium": 200, "source": "seeded" }
+]

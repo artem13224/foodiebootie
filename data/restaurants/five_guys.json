@@ -1,0 +1,12 @@
+[
+  { "name": "Hamburger (bun only, no toppings)", "brand": "Five Guys", "serving_size": 277, "serving_unit": "g", "calories": 700, "protein": 36, "carbs": 39, "fat": 43, "fiber": 2, "sugar": 8, "sodium": 430, "source": "seeded" },
+  { "name": "Cheeseburger (bun only, no toppings)", "brand": "Five Guys", "serving_size": 298, "serving_unit": "g", "calories": 840, "protein": 45, "carbs": 39, "fat": 55, "fiber": 2, "sugar": 8, "sodium": 1050, "source": "seeded" },
+  { "name": "Bacon Cheeseburger (bun only)", "brand": "Five Guys", "serving_size": 338, "serving_unit": "g", "calories": 920, "protein": 54, "carbs": 40, "fat": 62, "fiber": 2, "sugar": 8, "sodium": 1310, "source": "seeded" },
+  { "name": "Little Hamburger (bun only)", "brand": "Five Guys", "serving_size": 171, "serving_unit": "g", "calories": 540, "protein": 27, "carbs": 39, "fat": 30, "fiber": 2, "sugar": 8, "sodium": 380, "source": "seeded" },
+  { "name": "Little Cheeseburger (bun only)", "brand": "Five Guys", "serving_size": 184, "serving_unit": "g", "calories": 610, "protein": 32, "carbs": 39, "fat": 38, "fiber": 2, "sugar": 8, "sodium": 690, "source": "seeded" },
+  { "name": "Hot Dog", "brand": "Five Guys", "serving_size": 168, "serving_unit": "g", "calories": 430, "protein": 16, "carbs": 40, "fat": 24, "fiber": 2, "sugar": 6, "sodium": 860, "source": "seeded" },
+  { "name": "Veggie Sandwich (bun only)", "brand": "Five Guys", "serving_size": 213, "serving_unit": "g", "calories": 440, "protein": 17, "carbs": 60, "fat": 15, "fiber": 5, "sugar": 8, "sodium": 640, "source": "seeded" },
+  { "name": "Regular Fries", "brand": "Five Guys", "serving_size": 411, "serving_unit": "g", "calories": 953, "protein": 14, "carbs": 131, "fat": 41, "fiber": 8, "sugar": 3, "sodium": 962, "source": "seeded" },
+  { "name": "Little Fries", "brand": "Five Guys", "serving_size": 227, "serving_unit": "g", "calories": 526, "protein": 8, "carbs": 72, "fat": 23, "fiber": 5, "sugar": 2, "sodium": 531, "source": "seeded" },
+  { "name": "Cajun Fries (Regular)", "brand": "Five Guys", "serving_size": 411, "serving_unit": "g", "calories": 953, "protein": 14, "carbs": 131, "fat": 41, "fiber": 8, "sugar": 3, "sodium": 1474, "source": "seeded" }
+]

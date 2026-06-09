@@ -1,0 +1,11 @@
+[
+  { "name": "HOT-N-READY Classic Cheese Slice", "brand": "Little Caesars", "serving_size": 95, "serving_unit": "g", "calories": 240, "protein": 12, "carbs": 30, "fat": 8, "fiber": 1, "sugar": 3, "sodium": 460, "source": "seeded" },
+  { "name": "HOT-N-READY Classic Pepperoni Slice", "brand": "Little Caesars", "serving_size": 103, "serving_unit": "g", "calories": 280, "protein": 14, "carbs": 30, "fat": 12, "fiber": 2, "sugar": 3, "sodium": 600, "source": "seeded" },
+  { "name": "Deep Dish Cheese Slice", "brand": "Little Caesars", "serving_size": 136, "serving_unit": "g", "calories": 320, "protein": 14, "carbs": 42, "fat": 11, "fiber": 2, "sugar": 5, "sodium": 660, "source": "seeded" },
+  { "name": "Deep Dish Pepperoni Slice", "brand": "Little Caesars", "serving_size": 148, "serving_unit": "g", "calories": 390, "protein": 18, "carbs": 42, "fat": 17, "fiber": 2, "sugar": 5, "sodium": 850, "source": "seeded" },
+  { "name": "3D! Pepperoni Slice", "brand": "Little Caesars", "serving_size": 109, "serving_unit": "g", "calories": 310, "protein": 16, "carbs": 29, "fat": 15, "fiber": 1, "sugar": 3, "sodium": 720, "source": "seeded" },
+  { "name": "Crazy Bread (4 pieces)", "brand": "Little Caesars", "serving_size": 106, "serving_unit": "g", "calories": 300, "protein": 10, "carbs": 46, "fat": 9, "fiber": 2, "sugar": 2, "sodium": 750, "source": "seeded" },
+  { "name": "Crazy Sauce", "brand": "Little Caesars", "serving_size": 73, "serving_unit": "g", "calories": 45, "protein": 2, "carbs": 9, "fat": 0, "fiber": 1, "sugar": 6, "sodium": 300, "source": "seeded" },
+  { "name": "Italian Cheese Bread (2 pieces)", "brand": "Little Caesars", "serving_size": 107, "serving_unit": "g", "calories": 310, "protein": 14, "carbs": 36, "fat": 12, "fiber": 2, "sugar": 3, "sodium": 730, "source": "seeded" },
+  { "name": "Caesar Wings BBQ (2 pieces)", "brand": "Little Caesars", "serving_size": 100, "serving_unit": "g", "calories": 190, "protein": 16, "carbs": 9, "fat": 9, "fiber": 0, "sugar": 7, "sodium": 580, "source": "seeded" }
+]

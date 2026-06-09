@@ -1,0 +1,16 @@
+[
+  { "name": "Original Recipe Breast", "brand": "KFC", "serving_size": 161, "serving_unit": "g", "calories": 390, "protein": 39, "carbs": 11, "fat": 21, "fiber": 0, "sugar": 0, "sodium": 1060, "source": "seeded" },
+  { "name": "Original Recipe Drumstick", "brand": "KFC", "serving_size": 58, "serving_unit": "g", "calories": 130, "protein": 14, "carbs": 4, "fat": 7, "fiber": 0, "sugar": 0, "sodium": 340, "source": "seeded" },
+  { "name": "Original Recipe Thigh", "brand": "KFC", "serving_size": 96, "serving_unit": "g", "calories": 280, "protein": 18, "carbs": 8, "fat": 19, "fiber": 0, "sugar": 0, "sodium": 700, "source": "seeded" },
+  { "name": "Extra Crispy Breast", "brand": "KFC", "serving_size": 168, "serving_unit": "g", "calories": 530, "protein": 35, "carbs": 35, "fat": 29, "fiber": 2, "sugar": 0, "sodium": 1050, "source": "seeded" },
+  { "name": "Zinger Sandwich", "brand": "KFC", "serving_size": 213, "serving_unit": "g", "calories": 540, "protein": 27, "carbs": 55, "fat": 24, "fiber": 2, "sugar": 9, "sodium": 1350, "source": "seeded" },
+  { "name": "Chicken Sandwich", "brand": "KFC", "serving_size": 209, "serving_unit": "g", "calories": 520, "protein": 27, "carbs": 54, "fat": 22, "fiber": 2, "sugar": 9, "sodium": 1280, "source": "seeded" },
+  { "name": "Hot Wings (6 piece)", "brand": "KFC", "serving_size": 252, "serving_unit": "g", "calories": 540, "protein": 40, "carbs": 42, "fat": 23, "fiber": 2, "sugar": 1, "sodium": 1360, "source": "seeded" },
+  { "name": "Popcorn Chicken (Regular)", "brand": "KFC", "serving_size": 103, "serving_unit": "g", "calories": 360, "protein": 20, "carbs": 21, "fat": 21, "fiber": 1, "sugar": 0, "sodium": 860, "source": "seeded" },
+  { "name": "Individual Poutine", "brand": "KFC", "serving_size": 260, "serving_unit": "g", "calories": 470, "protein": 14, "carbs": 57, "fat": 21, "fiber": 4, "sugar": 2, "sodium": 1060, "source": "seeded" },
+  { "name": "Coleslaw (Regular)", "brand": "KFC", "serving_size": 142, "serving_unit": "g", "calories": 180, "protein": 1, "carbs": 21, "fat": 10, "fiber": 2, "sugar": 17, "sodium": 200, "source": "seeded" },
+  { "name": "Corn on the Cob", "brand": "KFC", "serving_size": 162, "serving_unit": "g", "calories": 190, "protein": 5, "carbs": 35, "fat": 4, "fiber": 4, "sugar": 7, "sodium": 5, "source": "seeded" },
+  { "name": "Gravy", "brand": "KFC", "serving_size": 87, "serving_unit": "g", "calories": 45, "protein": 1, "carbs": 8, "fat": 1, "fiber": 0, "sugar": 1, "sodium": 640, "source": "seeded" },
+  { "name": "Mac & Cheese", "brand": "KFC", "serving_size": 138, "serving_unit": "g", "calories": 220, "protein": 7, "carbs": 26, "fat": 10, "fiber": 1, "sugar": 4, "sodium": 520, "source": "seeded" },
+  { "name": "Biscuit", "brand": "KFC", "serving_size": 68, "serving_unit": "g", "calories": 220, "protein": 4, "carbs": 26, "fat": 11, "fiber": 1, "sugar": 4, "sodium": 410, "source": "seeded" }
+]

@@ -1,0 +1,17 @@
+[
+  { "name": "Spinach & Artichoke Dip", "brand": "Boston Pizza", "serving_size": 370, "serving_unit": "g", "calories": 780, "protein": 22, "carbs": 68, "fat": 46, "fiber": 5, "sugar": 6, "sodium": 1540, "source": "seeded" },
+  { "name": "Nachos (Full)", "brand": "Boston Pizza", "serving_size": 580, "serving_unit": "g", "calories": 1370, "protein": 45, "carbs": 148, "fat": 63, "fiber": 12, "sugar": 14, "sodium": 2800, "source": "seeded" },
+  { "name": "Chicken Wings (1 lb, plain)", "brand": "Boston Pizza", "serving_size": 454, "serving_unit": "g", "calories": 1000, "protein": 80, "carbs": 5, "fat": 72, "fiber": 0, "sugar": 1, "sodium": 2100, "source": "seeded" },
+  { "name": "Mozzarella Sticks (8 piece)", "brand": "Boston Pizza", "serving_size": 280, "serving_unit": "g", "calories": 700, "protein": 28, "carbs": 60, "fat": 38, "fiber": 3, "sugar": 5, "sodium": 1580, "source": "seeded" },
+  { "name": "Starter Calamari", "brand": "Boston Pizza", "serving_size": 310, "serving_unit": "g", "calories": 690, "protein": 24, "carbs": 73, "fat": 34, "fiber": 4, "sugar": 6, "sodium": 1340, "source": "seeded" },
+  { "name": "Boston's Classic Caesar Salad", "brand": "Boston Pizza", "serving_size": 295, "serving_unit": "g", "calories": 490, "protein": 14, "carbs": 28, "fat": 36, "fiber": 4, "sugar": 4, "sodium": 1050, "source": "seeded" },
+  { "name": "The Figgy Smalls Pizza (Individual)", "brand": "Boston Pizza", "serving_size": 310, "serving_unit": "g", "calories": 710, "protein": 30, "carbs": 92, "fat": 24, "fiber": 5, "sugar": 18, "sodium": 1360, "source": "seeded" },
+  { "name": "Pepperoni Pizza (Individual)", "brand": "Boston Pizza", "serving_size": 320, "serving_unit": "g", "calories": 780, "protein": 32, "carbs": 90, "fat": 30, "fiber": 4, "sugar": 10, "sodium": 1760, "source": "seeded" },
+  { "name": "BBQ Chicken Pizza (Individual)", "brand": "Boston Pizza", "serving_size": 335, "serving_unit": "g", "calories": 760, "protein": 38, "carbs": 96, "fat": 22, "fiber": 5, "sugar": 18, "sodium": 1620, "source": "seeded" },
+  { "name": "The Boston Brute Burger", "brand": "Boston Pizza", "serving_size": 430, "serving_unit": "g", "calories": 980, "protein": 52, "carbs": 72, "fat": 54, "fiber": 5, "sugar": 12, "sodium": 1980, "source": "seeded" },
+  { "name": "Cactus Cut Potatoes", "brand": "Boston Pizza", "serving_size": 310, "serving_unit": "g", "calories": 720, "protein": 16, "carbs": 82, "fat": 36, "fiber": 6, "sugar": 4, "sodium": 1420, "source": "seeded" },
+  { "name": "Spaghetti with Meat Sauce", "brand": "Boston Pizza", "serving_size": 520, "serving_unit": "g", "calories": 860, "protein": 36, "carbs": 110, "fat": 28, "fiber": 8, "sugar": 14, "sodium": 1640, "source": "seeded" },
+  { "name": "Chicken Fingers & Fries", "brand": "Boston Pizza", "serving_size": 440, "serving_unit": "g", "calories": 1080, "protein": 52, "carbs": 100, "fat": 50, "fiber": 6, "sugar": 6, "sodium": 2340, "source": "seeded" },
+  { "name": "Boston's Lasagna", "brand": "Boston Pizza", "serving_size": 460, "serving_unit": "g", "calories": 870, "protein": 44, "carbs": 80, "fat": 38, "fiber": 6, "sugar": 12, "sodium": 1980, "source": "seeded" },
+  { "name": "Thai Chicken Bowl", "brand": "Boston Pizza", "serving_size": 480, "serving_unit": "g", "calories": 820, "protein": 42, "carbs": 98, "fat": 28, "fiber": 7, "sugar": 20, "sodium": 1480, "source": "seeded" }
+]

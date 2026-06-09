@@ -1,0 +1,14 @@
+[
+  { "name": "Dave's Single", "brand": "Wendy's", "serving_size": 229, "serving_unit": "g", "calories": 590, "protein": 34, "carbs": 37, "fat": 34, "fiber": 2, "sugar": 9, "sodium": 1080, "source": "seeded" },
+  { "name": "Dave's Double", "brand": "Wendy's", "serving_size": 309, "serving_unit": "g", "calories": 840, "protein": 57, "carbs": 37, "fat": 55, "fiber": 2, "sugar": 9, "sodium": 1430, "source": "seeded" },
+  { "name": "Baconator", "brand": "Wendy's", "serving_size": 308, "serving_unit": "g", "calories": 950, "protein": 57, "carbs": 37, "fat": 62, "fiber": 1, "sugar": 9, "sodium": 1720, "source": "seeded" },
+  { "name": "Jr. Cheeseburger", "brand": "Wendy's", "serving_size": 129, "serving_unit": "g", "calories": 290, "protein": 16, "carbs": 28, "fat": 13, "fiber": 1, "sugar": 6, "sodium": 600, "source": "seeded" },
+  { "name": "Spicy Chicken Sandwich", "brand": "Wendy's", "serving_size": 213, "serving_unit": "g", "calories": 500, "protein": 33, "carbs": 49, "fat": 18, "fiber": 3, "sugar": 5, "sodium": 1020, "source": "seeded" },
+  { "name": "Crispy Chicken Sandwich", "brand": "Wendy's", "serving_size": 213, "serving_unit": "g", "calories": 470, "protein": 25, "carbs": 52, "fat": 18, "fiber": 2, "sugar": 6, "sodium": 870, "source": "seeded" },
+  { "name": "Medium French Fries", "brand": "Wendy's", "serving_size": 142, "serving_unit": "g", "calories": 420, "protein": 6, "carbs": 56, "fat": 20, "fiber": 4, "sugar": 0, "sodium": 480, "source": "seeded" },
+  { "name": "Medium Chocolate Frosty", "brand": "Wendy's", "serving_size": 340, "serving_unit": "g", "calories": 430, "protein": 10, "carbs": 74, "fat": 10, "fiber": 1, "sugar": 58, "sodium": 190, "source": "seeded" },
+  { "name": "Medium Vanilla Frosty", "brand": "Wendy's", "serving_size": 340, "serving_unit": "g", "calories": 440, "protein": 10, "carbs": 73, "fat": 11, "fiber": 0, "sugar": 61, "sodium": 200, "source": "seeded" },
+  { "name": "10 Piece Spicy Nuggets", "brand": "Wendy's", "serving_size": 175, "serving_unit": "g", "calories": 450, "protein": 26, "carbs": 38, "fat": 20, "fiber": 2, "sugar": 1, "sodium": 1010, "source": "seeded" },
+  { "name": "Small Chili", "brand": "Wendy's", "serving_size": 227, "serving_unit": "g", "calories": 190, "protein": 17, "carbs": 21, "fat": 5, "fiber": 5, "sugar": 7, "sodium": 870, "source": "seeded" },
+  { "name": "Baked Potato (Plain)", "brand": "Wendy's", "serving_size": 284, "serving_unit": "g", "calories": 320, "protein": 7, "carbs": 70, "fat": 0, "fiber": 7, "sugar": 4, "sodium": 40, "source": "seeded" }
+]

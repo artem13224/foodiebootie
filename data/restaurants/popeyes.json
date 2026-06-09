@@ -1,0 +1,14 @@
+[
+  { "name": "Spicy Chicken Sandwich", "brand": "Popeyes", "serving_size": 223, "serving_unit": "g", "calories": 700, "protein": 28, "carbs": 69, "fat": 37, "fiber": 3, "sugar": 5, "sodium": 1440, "source": "seeded" },
+  { "name": "Classic Chicken Sandwich", "brand": "Popeyes", "serving_size": 223, "serving_unit": "g", "calories": 699, "protein": 28, "carbs": 63, "fat": 42, "fiber": 3, "sugar": 5, "sodium": 1443, "source": "seeded" },
+  { "name": "2 Piece Spicy Chicken (Leg & Thigh)", "brand": "Popeyes", "serving_size": 243, "serving_unit": "g", "calories": 700, "protein": 62, "carbs": 27, "fat": 38, "fiber": 1, "sugar": 0, "sodium": 1530, "source": "seeded" },
+  { "name": "2 Piece Mild Chicken (Leg & Thigh)", "brand": "Popeyes", "serving_size": 243, "serving_unit": "g", "calories": 700, "protein": 62, "carbs": 27, "fat": 38, "fiber": 1, "sugar": 0, "sodium": 1530, "source": "seeded" },
+  { "name": "3 Piece Spicy Chicken Tenders", "brand": "Popeyes", "serving_size": 151, "serving_unit": "g", "calories": 470, "protein": 30, "carbs": 28, "fat": 27, "fiber": 2, "sugar": 0, "sodium": 1030, "source": "seeded" },
+  { "name": "Biscuit", "brand": "Popeyes", "serving_size": 60, "serving_unit": "g", "calories": 270, "protein": 4, "carbs": 26, "fat": 17, "fiber": 1, "sugar": 5, "sodium": 610, "source": "seeded" },
+  { "name": "Regular Red Beans and Rice", "brand": "Popeyes", "serving_size": 187, "serving_unit": "g", "calories": 230, "protein": 8, "carbs": 31, "fat": 9, "fiber": 5, "sugar": 2, "sodium": 680, "source": "seeded" },
+  { "name": "Regular Mashed Potatoes", "brand": "Popeyes", "serving_size": 175, "serving_unit": "g", "calories": 110, "protein": 2, "carbs": 18, "fat": 3, "fiber": 1, "sugar": 1, "sodium": 530, "source": "seeded" },
+  { "name": "Regular Coleslaw", "brand": "Popeyes", "serving_size": 114, "serving_unit": "g", "calories": 230, "protein": 1, "carbs": 19, "fat": 16, "fiber": 2, "sugar": 16, "sodium": 280, "source": "seeded" },
+  { "name": "Regular Cajun Rice", "brand": "Popeyes", "serving_size": 131, "serving_unit": "g", "calories": 180, "protein": 5, "carbs": 26, "fat": 6, "fiber": 2, "sugar": 0, "sodium": 620, "source": "seeded" },
+  { "name": "Regular Mac & Cheese", "brand": "Popeyes", "serving_size": 131, "serving_unit": "g", "calories": 230, "protein": 9, "carbs": 25, "fat": 11, "fiber": 1, "sugar": 4, "sodium": 650, "source": "seeded" },
+  { "name": "Corn on the Cob", "brand": "Popeyes", "serving_size": 127, "serving_unit": "g", "calories": 190, "protein": 5, "carbs": 38, "fat": 3, "fiber": 4, "sugar": 5, "sodium": 0, "source": "seeded" }
+]

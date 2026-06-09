@@ -1,0 +1,12 @@
+[
+  { "name": "Original Burger", "brand": "Harvey's", "serving_size": 191, "serving_unit": "g", "calories": 490, "protein": 24, "carbs": 35, "fat": 27, "fiber": 2, "sugar": 9, "sodium": 680, "source": "seeded" },
+  { "name": "Angus Burger", "brand": "Harvey's", "serving_size": 233, "serving_unit": "g", "calories": 660, "protein": 37, "carbs": 35, "fat": 43, "fiber": 2, "sugar": 9, "sodium": 960, "source": "seeded" },
+  { "name": "Double Original Burger", "brand": "Harvey's", "serving_size": 259, "serving_unit": "g", "calories": 680, "protein": 40, "carbs": 36, "fat": 40, "fiber": 2, "sugar": 9, "sodium": 1010, "source": "seeded" },
+  { "name": "Veggie Burger", "brand": "Harvey's", "serving_size": 221, "serving_unit": "g", "calories": 420, "protein": 15, "carbs": 60, "fat": 14, "fiber": 6, "sugar": 10, "sodium": 950, "source": "seeded" },
+  { "name": "Chicken Burger", "brand": "Harvey's", "serving_size": 207, "serving_unit": "g", "calories": 510, "protein": 25, "carbs": 52, "fat": 22, "fiber": 2, "sugar": 6, "sodium": 1090, "source": "seeded" },
+  { "name": "Spicy Chicken Burger", "brand": "Harvey's", "serving_size": 207, "serving_unit": "g", "calories": 540, "protein": 25, "carbs": 54, "fat": 24, "fiber": 2, "sugar": 7, "sodium": 1200, "source": "seeded" },
+  { "name": "Regular Fries", "brand": "Harvey's", "serving_size": 117, "serving_unit": "g", "calories": 340, "protein": 4, "carbs": 47, "fat": 15, "fiber": 4, "sugar": 0, "sodium": 590, "source": "seeded" },
+  { "name": "Poutine (Regular)", "brand": "Harvey's", "serving_size": 270, "serving_unit": "g", "calories": 500, "protein": 13, "carbs": 60, "fat": 24, "fiber": 4, "sugar": 2, "sodium": 1100, "source": "seeded" },
+  { "name": "Onion Rings", "brand": "Harvey's", "serving_size": 117, "serving_unit": "g", "calories": 380, "protein": 5, "carbs": 42, "fat": 21, "fiber": 3, "sugar": 3, "sodium": 610, "source": "seeded" },
+  { "name": "Harvey's Hot Sauce Chicken Sandwich", "brand": "Harvey's", "serving_size": 215, "serving_unit": "g", "calories": 560, "protein": 26, "carbs": 55, "fat": 26, "fiber": 2, "sugar": 8, "sodium": 1320, "source": "seeded" }
+]

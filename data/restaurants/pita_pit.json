@@ -1,0 +1,12 @@
+[
+  { "name": "Chicken Caesar Pita", "brand": "Pita Pit", "serving_size": 338, "serving_unit": "g", "calories": 520, "protein": 42, "carbs": 52, "fat": 14, "fiber": 4, "sugar": 4, "sodium": 1190, "source": "seeded" },
+  { "name": "Chicken Souvlaki Pita", "brand": "Pita Pit", "serving_size": 338, "serving_unit": "g", "calories": 510, "protein": 43, "carbs": 52, "fat": 13, "fiber": 4, "sugar": 4, "sodium": 1060, "source": "seeded" },
+  { "name": "Falafel Pita", "brand": "Pita Pit", "serving_size": 350, "serving_unit": "g", "calories": 530, "protein": 22, "carbs": 72, "fat": 18, "fiber": 9, "sugar": 6, "sodium": 1020, "source": "seeded" },
+  { "name": "Gyro Pita", "brand": "Pita Pit", "serving_size": 350, "serving_unit": "g", "calories": 490, "protein": 30, "carbs": 52, "fat": 16, "fiber": 4, "sugar": 4, "sodium": 1080, "source": "seeded" },
+  { "name": "BLT Pita", "brand": "Pita Pit", "serving_size": 284, "serving_unit": "g", "calories": 420, "protein": 23, "carbs": 52, "fat": 12, "fiber": 4, "sugar": 4, "sodium": 1050, "source": "seeded" },
+  { "name": "Veggie Pita", "brand": "Pita Pit", "serving_size": 308, "serving_unit": "g", "calories": 360, "protein": 14, "carbs": 62, "fat": 7, "fiber": 8, "sugar": 6, "sodium": 760, "source": "seeded" },
+  { "name": "Grilled Cheese Pita", "brand": "Pita Pit", "serving_size": 250, "serving_unit": "g", "calories": 480, "protein": 22, "carbs": 52, "fat": 20, "fiber": 4, "sugar": 4, "sodium": 1080, "source": "seeded" },
+  { "name": "Steak & Mushroom Pita", "brand": "Pita Pit", "serving_size": 340, "serving_unit": "g", "calories": 500, "protein": 38, "carbs": 52, "fat": 14, "fiber": 4, "sugar": 4, "sodium": 1100, "source": "seeded" },
+  { "name": "Pita Bread Only", "brand": "Pita Pit", "serving_size": 75, "serving_unit": "g", "calories": 190, "protein": 7, "carbs": 38, "fat": 1, "fiber": 2, "sugar": 2, "sodium": 380, "source": "seeded" },
+  { "name": "Hummus (side)", "brand": "Pita Pit", "serving_size": 57, "serving_unit": "g", "calories": 90, "protein": 3, "carbs": 9, "fat": 5, "fiber": 2, "sugar": 1, "sodium": 220, "source": "seeded" }
+]
