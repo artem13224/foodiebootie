@@ -71,9 +71,12 @@ function unitOptions(key: string): string[] {
 }
 
 export default function SupplementAdd({ onClose, onAdded, defaultBarcode }: Props) {
-  const [mode, setMode] = useState<'menu' | 'search' | 'scan' | 'manual' | 'confirm'>('menu')
+  const [mode, setMode] = useState<'menu' | 'search' | 'scan' | 'manual' | 'confirm' | 'found'>('menu')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+
+  // library match (own/shared supplement already saved with this barcode)
+  const [found, setFound] = useState<{ id: string; name: string; brand: string | null; serving_size: number; serving_unit: string; is_shared: boolean } | null>(null)
 
   // search
   const [query, setQuery] = useState('')
@@ -121,6 +124,17 @@ export default function SupplementAdd({ onClose, onAdded, defaultBarcode }: Prop
   async function onBarcode(code: string) {
     setMode('menu'); setBusy(true); setError('')
     try {
+      // 1. Your shared/own library first — recognise a manual+shared entry.
+      const libRes = await fetch(`/api/supplements?barcode=${encodeURIComponent(code)}`)
+      const lib = await libRes.json().catch(() => ({}))
+      if (lib.supplement) {
+        setFound(lib.supplement)
+        setMode('found')
+        setBusy(false)
+        return
+      }
+
+      // 2. Fall back to DSLD.
       const res = await fetch(`/api/supplements/dsld/barcode?code=${encodeURIComponent(code)}`)
       const json = await res.json()
       if (json.found && json.supplement) {
@@ -157,6 +171,20 @@ export default function SupplementAdd({ onClose, onAdded, defaultBarcode }: Prop
       if (!res.ok) { setError(json.error ?? 'Save failed'); setBusy(false); return }
       onAdded()
     } catch { setError('Save failed'); setBusy(false) }
+  }
+
+  // ── log a library match for today ──
+  async function addFromLibrary() {
+    if (!found) return
+    setBusy(true); setError('')
+    try {
+      const res = await fetch('/api/supplements/log', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ supplement_id: found.id }),
+      })
+      if (!res.ok) { const j = await res.json().catch(() => ({})); setError(j.error ?? 'Could not add'); setBusy(false); return }
+      onAdded()
+    } catch { setError('Could not add'); setBusy(false) }
   }
 
   // ── save manual ──
@@ -246,6 +274,27 @@ export default function SupplementAdd({ onClose, onAdded, defaultBarcode }: Prop
             </button>
           ))}
           <button style={{ ...ghostBtn, marginTop: '12px' }} onClick={() => setMode('menu')}>← BACK</button>
+        </div>
+      )}
+
+      {/* ── FOUND IN LIBRARY ── */}
+      {mode === 'found' && found && (
+        <div>
+          <div style={{ ...label, color: 'var(--color-accent)' }}>FOUND IN YOUR LIBRARY</div>
+          <div style={{ border: '1px solid var(--color-border)', borderLeft: '3px solid var(--color-accent)', padding: '14px', marginTop: '8px' }}>
+            <div style={{ fontFamily: "'Barlow', sans-serif", fontSize: '15px', fontWeight: 600, color: 'var(--color-text)' }}>{found.name}</div>
+            <div style={{ ...label, marginTop: '2px', marginBottom: 0 }}>
+              {(found.brand ? found.brand + ' · ' : '')}{found.serving_size} {found.serving_unit}{found.is_shared ? ' · SHARED' : ''}
+            </div>
+          </div>
+          <p style={{ fontFamily: "'Barlow', sans-serif", fontSize: '12px', color: 'var(--color-text-dim)', lineHeight: 1.5, marginTop: '12px' }}>
+            This supplement is already in your library — no need to re-enter it.
+          </p>
+          <button style={{ ...primaryBtn, marginTop: '12px' }} onClick={addFromLibrary} disabled={busy}>
+            {busy ? 'ADDING…' : 'ADD TO TODAY'}
+          </button>
+          <button style={{ ...ghostBtn, marginTop: '8px' }} onClick={() => { setFound(null); setMode('manual') }}>NOT THIS — ADD MANUALLY</button>
+          <button style={{ ...ghostBtn, marginTop: '8px' }} onClick={() => { setFound(null); setMode('menu') }}>← BACK</button>
         </div>
       )}
 

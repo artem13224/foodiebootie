@@ -133,6 +133,9 @@ function LogPageInner() {
   const [scannerOpen, setScannerOpen] = useState(false)
   const [barcodeLoading, setBarcodeLoading] = useState(false)
   const [barcodeNotFound, setBarcodeNotFound] = useState(false)
+  // Last scanned code that wasn't found — saved onto a manual entry so the next
+  // scan (by anyone, if shared) recognises it.
+  const [scannedBarcode, setScannedBarcode] = useState<string | null>(null)
 
   // Quick add state
   const [quickAdd, setQuickAdd] = useState({ name: '', kcal: '', protein: '', carbs: '', fat: '' })
@@ -262,11 +265,15 @@ function LogPageInner() {
       const res = await fetch(`/api/food/barcode?code=${encodeURIComponent(code)}`)
       const json = await res.json()
       if (json.food) {
+        setScannedBarcode(null)
         openSheet(json.food as FoodResult)
       } else {
+        // Remember the code so a manual entry can be saved against it.
+        setScannedBarcode(code)
         setBarcodeNotFound(true)
       }
     } catch {
+      setScannedBarcode(code)
       setBarcodeNotFound(true)
     }
     setBarcodeLoading(false)
@@ -475,6 +482,7 @@ function LogPageInner() {
       carbs_per_100g: parseFloat(newFood.carbs) || 0,
       fat_per_100g: parseFloat(newFood.fat) || 0,
       fiber_per_100g: parseFloat(newFood.fiber) || null,
+      barcode: scannedBarcode || null,
       is_shared: shareFood,
     })
 
@@ -482,6 +490,7 @@ function LogPageInner() {
     setShowCreateForm(false)
     setNewFood({ name: '', brand: '', serving: '100', kcal: '', protein: '', carbs: '', fat: '', fiber: '' })
     setShareFood(true)
+    setScannedBarcode(null)
     loadCustomFoods()
   }
 

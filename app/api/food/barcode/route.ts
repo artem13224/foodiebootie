@@ -1,6 +1,42 @@
 import { NextResponse } from 'next/server'
 import type { FoodResult } from '@/types/food'
 import { lookupBarcodeFatSecret, fatSecretToFoodResult } from '@/lib/fatsecret'
+import { createClient } from '@/lib/supabase/server'
+
+// ── 0. Shared/own custom-food library ─────────────────────────────────────────
+// A manually-added food that someone shared (or your own private one) should be
+// recognised on the next scan — before we ever hit an external database.
+// custom_foods is world-readable under RLS, so we restrict to shared + own.
+async function tryCustomLibrary(variants: string[]): Promise<FoodResult | null> {
+  try {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let q: any = (supabase as any)
+      .from('custom_foods')
+      .select('id,name,brand,serving_g,kcal_per_100g,protein_per_100g,carbs_per_100g,fat_per_100g,fiber_per_100g')
+      .in('barcode', variants)
+      .limit(1)
+    q = user ? q.or(`is_shared.eq.true,created_by.eq.${user.id}`) : q.eq('is_shared', true)
+    const { data } = await q.maybeSingle()
+    if (!data) return null
+    return {
+      id: data.id,
+      source: 'custom',
+      name: data.name,
+      brand: data.brand ?? undefined,
+      kcalPer100g: Number(data.kcal_per_100g),
+      proteinPer100g: Number(data.protein_per_100g),
+      carbsPer100g: Number(data.carbs_per_100g),
+      fatPer100g: Number(data.fat_per_100g),
+      fiberPer100g: Number(data.fiber_per_100g ?? 0),
+      servingG: Number(data.serving_g),
+      customFoodId: data.id,
+    }
+  } catch {
+    return null
+  }
+}
 
 function parseServingG(raw: string | undefined): number {
   if (!raw) return 100
@@ -122,6 +158,11 @@ export async function GET(request: Request) {
 
   // Normalise to EAN-13: iOS BarcodeDetector strips leading zero (12 → 13 digits)
   const codeEan = code.length === 12 ? '0' + code : code
+  const variants = Array.from(new Set([code, codeEan, code.replace(/^0+/, '')]))
+
+  // ── 0. Shared/own custom-food library (recognise manual + shared entries) ────
+  const libResult = await tryCustomLibrary(variants)
+  if (libResult) return NextResponse.json({ food: libResult })
 
   // ── 1. Open Food Facts ──────────────────────────────────────────────────────
   const offResult =

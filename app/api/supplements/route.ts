@@ -29,11 +29,27 @@ const createSchema = z.object({
   nutrients: z.array(nutrientInput).default([]),
 })
 
-// ── GET: list the user's supplements + shared library, with nutrients ──────────
-export async function GET() {
+// ── GET: list supplements, OR look one up by ?barcode= (shared+own via RLS) ────
+export async function GET(request: Request) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  // Barcode lookup: recognise a manually-added, shared supplement on re-scan
+  // before falling back to DSLD. RLS limits results to shared + own rows.
+  const barcode = new URL(request.url).searchParams.get('barcode')
+  if (barcode) {
+    const variants = Array.from(new Set([
+      barcode, barcode.length === 12 ? '0' + barcode : barcode, barcode.replace(/^0+/, ''),
+    ]))
+    const { data: hit } = await (supabase as any)
+      .from('supplements')
+      .select('id, name, brand, serving_size, serving_unit, is_shared')
+      .in('barcode', variants)
+      .limit(1)
+      .maybeSingle()
+    return NextResponse.json({ supplement: hit ?? null })
+  }
 
   const { data, error } = await (supabase as any)
     .from('supplements')
