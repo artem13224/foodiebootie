@@ -515,6 +515,30 @@ export default function EditProfilePage() {
         </div>
       </div>
 
+      {/* ── Supplement inputs ── */}
+      <div style={sectionStyle}>
+        <span style={labelStyle}>SUPPLEMENTS</span>
+        <button
+          onClick={() => { window.location.href = '/profile/supplements' }}
+          style={{
+            ...cardStyle(false),
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          }}
+        >
+          <span>
+            <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: '20px', color: 'var(--color-text)', letterSpacing: '0.05em' }}>
+              SUPPLEMENT INPUTS
+            </span>
+            <span style={{ display: 'block', fontFamily: "'Barlow', sans-serif", fontSize: '12px', color: 'var(--color-text-dim)', marginTop: '2px' }}>
+              Manage your supplements, stacks &amp; serving defaults
+            </span>
+          </span>
+          <svg width="18" height="18" viewBox="0 0 20 20" fill="none" style={{ color: 'var(--color-text-dim)', flexShrink: 0 }}>
+            <path d="M7 4L13 10L7 16" stroke="currentColor" strokeWidth="1.5" />
+          </svg>
+        </button>
+      </div>
+
       {/* Error */}
       {error && (
         <div style={{ fontFamily: "'Barlow', sans-serif", fontSize: '13px', color: 'var(--color-danger)', marginBottom: '16px' }}>

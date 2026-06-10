@@ -20,15 +20,17 @@ type Tab = {
   label: string
   href: string
   icon: React.ReactNode
+  disabled?: boolean
 }
 
+// Bar layout (7 slots, FAB centered): TODAY · TRENDS · BODY · [LOG] · SUPPS · SOON · MORE
 const TABS: Tab[] = [
   {
     id: 'today',
     label: 'TODAY',
     href: '/today',
     icon: (
-      <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <svg width="21" height="21" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect x="3" y="5" width="16" height="14" stroke="currentColor" strokeWidth="1.5" />
         <path d="M7 3V7M15 3V7" stroke="currentColor" strokeWidth="1.5" />
         <path d="M3 9H19" stroke="currentColor" strokeWidth="1.5" />
@@ -42,9 +44,22 @@ const TABS: Tab[] = [
     label: 'TRENDS',
     href: '/trends',
     icon: (
-      <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <svg width="21" height="21" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path d="M3 17L8 10L12 14L17 7" stroke="currentColor" strokeWidth="1.5" />
         <path d="M14 7H17V10" stroke="currentColor" strokeWidth="1.5" />
+      </svg>
+    ),
+  },
+  {
+    id: 'body',
+    label: 'BODY',
+    href: '/body',
+    icon: (
+      <svg width="21" height="21" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="11" cy="5" r="2" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M11 8V15" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M7 10H15" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M8 15L7 19M14 15L15 19" stroke="currentColor" strokeWidth="1.5" />
       </svg>
     ),
   },
@@ -59,15 +74,29 @@ const TABS: Tab[] = [
     ),
   },
   {
-    id: 'body',
-    label: 'BODY',
-    href: '/body',
+    id: 'supplements',
+    label: 'SUPPS',
+    href: '/supplements',
+    // Supplement bottle — angular, no rounded paths
     icon: (
-      <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="11" cy="5" r="2" stroke="currentColor" strokeWidth="1.5" />
-        <path d="M11 8V15" stroke="currentColor" strokeWidth="1.5" />
-        <path d="M7 10H15" stroke="currentColor" strokeWidth="1.5" />
-        <path d="M8 15L7 19M14 15L15 19" stroke="currentColor" strokeWidth="1.5" />
+      <svg width="21" height="21" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="7" y="3" width="8" height="3" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M6 8H16V18H6V8Z" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M6 8L7 6H15L16 8" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M9 12H13" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M11 10V14" stroke="currentColor" strokeWidth="1.5" />
+      </svg>
+    ),
+  },
+  {
+    id: 'placeholder',
+    label: 'SOON',
+    href: '#',
+    disabled: true,
+    // Dashed square — reserved slot for an upcoming feature
+    icon: (
+      <svg width="21" height="21" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="4" y="4" width="14" height="14" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 2.5" />
       </svg>
     ),
   },
@@ -76,7 +105,7 @@ const TABS: Tab[] = [
     label: 'MORE',
     href: '/profile',
     icon: (
-      <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <svg width="21" height="21" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
         <circle cx="11" cy="8" r="3" stroke="currentColor" strokeWidth="1.5" />
         <path d="M5 19C5 16 7.686 14 11 14C14.314 14 17 16 17 19" stroke="currentColor" strokeWidth="1.5" />
       </svg>
@@ -94,7 +123,9 @@ export default function TabBar() {
   }, [pathname]) // re-evaluate whenever route changes (catches "Got It" acknowledgement)
 
   function isActive(tab: Tab) {
+    if (tab.disabled) return false
     if (tab.href === '/today') return pathname === '/today'
+    if (tab.href === '/profile') return pathname.startsWith('/profile')
     return pathname.startsWith(tab.href)
   }
 
@@ -117,12 +148,48 @@ export default function TabBar() {
         alignItems: 'flex-end',
         justifyContent: 'space-around',
         paddingTop: '10px',
+        paddingLeft: '4px',
+        paddingRight: '4px',
         // 8px minimum keeps a tiny gap on non-iPhone; env() handles iPhone home bar (~34px)
         paddingBottom: 'max(8px, env(safe-area-inset-bottom))',
       }}>
         {TABS.map(tab => {
           const active = isActive(tab)
           const isLog = tab.id === 'log'
+
+          // Inert placeholder — reserved slot, no navigation
+          if (tab.disabled) {
+            return (
+              <div
+                key={tab.id}
+                aria-disabled="true"
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '4px',
+                  color: 'var(--color-text-muted)',
+                  paddingBottom: '6px',
+                  minWidth: '36px',
+                  opacity: 0.55,
+                  cursor: 'default',
+                }}
+              >
+                <div style={{ height: '52px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {tab.icon}
+                </div>
+                <span style={{
+                  fontFamily: "'Barlow Condensed', sans-serif",
+                  fontWeight: 700,
+                  fontSize: '8px',
+                  letterSpacing: '1px',
+                  textTransform: 'uppercase',
+                }}>
+                  {tab.label}
+                </span>
+              </div>
+            )
+          }
 
           if (isLog) {
             return (
@@ -175,7 +242,7 @@ export default function TabBar() {
                 textDecoration: 'none',
                 color: active ? 'var(--color-accent)' : 'var(--color-text-dim)',
                 paddingBottom: '6px',
-                minWidth: '44px',
+                minWidth: '36px',
               }}
             >
               <div style={{ height: '52px', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
@@ -197,7 +264,7 @@ export default function TabBar() {
                 fontFamily: "'Barlow Condensed', sans-serif",
                 fontWeight: 700,
                 fontSize: '8px',
-                letterSpacing: '1.5px',
+                letterSpacing: '1px',
                 textTransform: 'uppercase',
               }}>
                 {tab.label}

@@ -105,7 +105,8 @@ body {
   max-width: 390px;
   margin: 0 auto;
   padding: 0 var(--space-5);
-  padding-bottom: max(84px, calc(66px + env(safe-area-inset-bottom)));
+  /* Clears the bottom tab bar (taller now with 7 slots + iPhone home indicator). */
+  padding-bottom: max(96px, calc(80px + env(safe-area-inset-bottom)));
   min-height: 100dvh;
 }
 

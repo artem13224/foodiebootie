@@ -3,9 +3,9 @@
 -- Run once in Supabase Dashboard → SQL Editor.
 -- Safe to re-run: uses INSERT ... ON CONFLICT DO NOTHING.
 
--- Add unique index so re-runs are idempotent (IF NOT EXISTS only valid on CREATE INDEX)
-CREATE UNIQUE INDEX IF NOT EXISTS custom_foods_name_brand_unique
-  ON custom_foods (name, brand);
+-- Add unique constraint so re-runs are idempotent
+ALTER TABLE custom_foods
+  ADD CONSTRAINT IF NOT EXISTS custom_foods_name_brand_unique UNIQUE (name, brand);
 
 INSERT INTO custom_foods (
   name, brand,
@@ -219,7 +219,7 @@ INSERT INTO custom_foods (
 ('Double Hamburger','Burger King',100,360,22,28,18,1,NULL,true,'seeded',360,22,28,18,1,6,520,1,'serving'),
 ('Double Quarter Pound King','Burger King',100,900,56,50,54,2,NULL,true,'seeded',900,56,50,54,2,11,1740,1,'serving'),
 ('Extra Long Cheeseburger','Burger King',100,580,26,45,33,2,NULL,true,'seeded',580,26,45,33,2,9,1030,1,'serving'),
-('Farmhouse King','Burger King',100,1220,0,62,80,NULL,NULL,true,'seeded',1220,0,62,80,NULL,15,2050,1,'serving'),
+('Farmhouse King','Burger King',100,1220,63,62,80,NULL,NULL,true,'seeded',1220,63,62,80,NULL,15,2050,1,'serving'),
 ('Hamburger','Burger King',100,260,13,28,10,1,NULL,true,'seeded',260,13,28,10,1,6,490,1,'serving'),
 ('Homestyle Cheeseburger','Burger King',100,550,30,48,27,2,NULL,true,'seeded',550,30,48,27,2,10,1140,1,'serving'),
 ('Jalapeno King Sandwich','Burger King',100,990,55,46,65,2,NULL,true,'seeded',990,55,46,65,2,7,1550,1,'serving'),
