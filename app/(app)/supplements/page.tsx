@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import SupplementAdd from '@/components/forms/SupplementAdd'
 import HealthAssessment from '@/components/forms/HealthAssessment'
+import { scheduleSupplements } from '@/lib/science/supplementTiming'
 
 // ── Types (mirror API responses) ──
 interface SupplementNutrient { amount: number; unit: string; nutrients: { key: string; display_name: string } | null }
@@ -111,9 +112,26 @@ export default function SupplementsPage() {
     } finally { setBusyId(null) }
   }
 
+  async function removeSupp(suppId: string) {
+    setBusyId(suppId)
+    try {
+      await fetch(`/api/supplements/${suppId}`, { method: 'DELETE' })
+      await load()
+    } finally { setBusyId(null) }
+  }
+
   const isFirstTime = !loading && supplements.length === 0 && stacks.length === 0 && loggedDates.length === 0 && !skipped
   const streak = computeStreak(loggedDates)
   const warnings = intake?.warnings ?? []
+
+  // Science-based daily timing plan for the user's supplements.
+  const schedule = scheduleSupplements(
+    supplements.map(s => ({
+      id: s.id,
+      name: s.name,
+      nutrientKeys: s.supplement_nutrients.map(sn => sn.nutrients?.key).filter(Boolean) as string[],
+    })),
+  )
 
   // ── Loading ──
   if (loading) {
@@ -249,23 +267,34 @@ export default function SupplementsPage() {
           </div>
         )}
 
-        {/* ── LAYER A: Today's supplements ── */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-          <span style={sectionLabel}>TODAY</span>
+        {/* ── LAYER A: Today's supplements, scheduled by time ── */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+          <span style={sectionLabel}>TODAY’S PLAN</span>
+          {supplements.length > 0 && <span style={microLabel}>SWIPE A ROW TO REMOVE</span>}
         </div>
+        <p style={{ fontFamily: "'Barlow', sans-serif", fontSize: '11px', color: 'var(--color-text-muted)', margin: '0 0 14px', lineHeight: 1.5 }}>
+          Spaced for absorption &amp; safety — not all at once.
+        </p>
 
-        {/* Stacks (one-tap log) */}
+        {/* Stacks (one-tap log + edit) */}
         {stacks.map(st => (
           <div key={st.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid var(--color-border)', padding: '10px 14px', marginBottom: '8px' }}>
             <div>
               <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '14px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-text)' }}>{st.name}</div>
               <div style={microLabel}>{st.supplement_stack_items.length} ITEMS</div>
             </div>
-            <button onClick={() => logStack(st.id)} disabled={busyId === st.id} style={{
-              background: 'var(--color-accent)', border: 'none', color: '#fff', cursor: 'pointer',
-              fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '11px', letterSpacing: '0.12em',
-              textTransform: 'uppercase', padding: '8px 14px',
-            }}>LOG STACK</button>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <Link href={`/profile/supplements?stack=${st.id}`} style={{
+                background: 'var(--color-bg)', border: '1px solid var(--color-border)', color: 'var(--color-text-dim)', textDecoration: 'none',
+                fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '11px', letterSpacing: '0.12em',
+                textTransform: 'uppercase', padding: '8px 12px', display: 'flex', alignItems: 'center',
+              }}>EDIT</Link>
+              <button onClick={() => logStack(st.id)} disabled={busyId === st.id} style={{
+                background: 'var(--color-accent)', border: 'none', color: '#fff', cursor: 'pointer',
+                fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '11px', letterSpacing: '0.12em',
+                textTransform: 'uppercase', padding: '8px 14px',
+              }}>LOG STACK</button>
+            </div>
           </div>
         ))}
 
@@ -275,29 +304,32 @@ export default function SupplementsPage() {
           </p>
         )}
 
-        {supplements.map(s => {
-          const taken = todayIds.includes(s.id)
-          return (
-            <button key={s.id} onClick={() => toggleTake(s.id)} disabled={busyId === s.id}
-              style={{ display: 'flex', width: '100%', alignItems: 'center', gap: '12px', textAlign: 'left',
-                background: 'var(--color-bg)', border: 'none', borderTop: '1px solid var(--color-border-soft)',
-                padding: '14px 2px', cursor: 'pointer' }}>
-              {/* Check box */}
-              <div style={{
-                width: '24px', height: '24px', flexShrink: 0, border: `1.5px solid ${taken ? 'var(--color-accent)' : 'var(--color-border)'}`,
-                background: taken ? 'var(--color-accent)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                {taken && <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7L6 11L12 3" stroke="#fff" strokeWidth="2" /></svg>}
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontFamily: "'Barlow', sans-serif", fontSize: '14px', fontWeight: 600, color: taken ? 'var(--color-text)' : 'var(--color-text)' }}>{s.name}</div>
-                <div style={microLabel}>
-                  {(s.brand ? s.brand + ' · ' : '')}{s.serving_size} {s.serving_unit}{s.is_shared ? ' · SHARED' : ''}
-                </div>
-              </div>
-            </button>
-          )
-        })}
+        {/* Timing-separation warnings */}
+        {schedule.warnings.map((w, i) => (
+          <div key={i} style={{ border: '1px solid var(--color-warning)', borderLeft: '3px solid var(--color-warning)', padding: '9px 12px', marginBottom: '8px', background: 'var(--color-surface)' }}>
+            <span style={{ fontFamily: "'Barlow', sans-serif", fontSize: '12px', color: 'var(--color-text)', lineHeight: 1.4 }}>⚠ {w}</span>
+          </div>
+        ))}
+
+        {/* Scheduled slots */}
+        {schedule.slots.map(slot => (
+          <div key={slot.key} style={{ marginTop: '14px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '2px' }}>
+              <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: '12px', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--color-accent)' }}>{slot.label}</span>
+              <span style={{ fontFamily: "'Barlow', sans-serif", fontSize: '10px', color: 'var(--color-text-muted)' }}>{slot.foodHint}</span>
+            </div>
+            {slot.items.map(item => {
+              const s = supplements.find(x => x.id === item.id)
+              if (!s) return null
+              return (
+                <SupplementRow key={item.id} taken={todayIds.includes(item.id)} busy={busyId === item.id}
+                  name={s.name} sub={`${s.brand ? s.brand + ' · ' : ''}${s.serving_size} ${s.serving_unit}`}
+                  note={item.note}
+                  onToggle={() => toggleTake(item.id)} onRemove={() => removeSupp(item.id)} />
+              )
+            })}
+          </div>
+        ))}
 
         {/* ── LAYER B: Nutrient intake + safety ── */}
         {intake && intake.nutrients.length > 0 && (
@@ -318,6 +350,74 @@ export default function SupplementsPage() {
       {showAdd && <SupplementAdd onClose={() => setShowAdd(false)} onAdded={() => { setShowAdd(false); load() }} />}
       {showAssessment && <HealthAssessment onClose={() => setShowAssessment(false)} onComplete={() => { setShowAssessment(false); load() }} />}
     </>
+  )
+}
+
+// ── Supplement row: tap to take/untake, swipe (or drag) left to remove ──
+function SupplementRow({ name, sub, note, taken, busy, onToggle, onRemove }: {
+  name: string; sub: string; note: string; taken: boolean; busy: boolean
+  onToggle: () => void; onRemove: () => void
+}) {
+  const [dx, setDx] = useState(0)
+  const [dragging, setDragging] = useState(false)
+  const start = useRef<{ x: number; base: number } | null>(null)
+  const moved = useRef(false)
+  const REVEAL = -84
+
+  function down(e: React.PointerEvent) {
+    start.current = { x: e.clientX, base: dx }
+    moved.current = false
+    setDragging(true)
+    try { (e.currentTarget as Element).setPointerCapture(e.pointerId) } catch { /* ignore */ }
+  }
+  function move(e: React.PointerEvent) {
+    if (!start.current) return
+    const delta = e.clientX - start.current.x
+    if (Math.abs(delta) > 6) moved.current = true
+    setDx(Math.max(REVEAL, Math.min(0, start.current.base + delta)))
+  }
+  function up() {
+    if (!start.current) return
+    start.current = null
+    setDragging(false)
+    setDx(prev => (prev < REVEAL / 2 ? REVEAL : 0))
+  }
+  function rowTap() {
+    if (moved.current) return       // it was a swipe, not a tap
+    if (dx !== 0) { setDx(0); return } // close the reveal
+    onToggle()
+  }
+
+  return (
+    <div style={{ position: 'relative', overflow: 'hidden', borderTop: '1px solid var(--color-border-soft)' }}>
+      {/* delete zone */}
+      <button onClick={onRemove} disabled={busy} style={{
+        position: 'absolute', top: 0, right: 0, bottom: 0, width: '84px',
+        background: 'var(--color-danger)', border: 'none', color: '#fff', cursor: 'pointer',
+        fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: '11px', letterSpacing: '0.12em', textTransform: 'uppercase',
+      }}>REMOVE</button>
+      {/* row */}
+      <div
+        onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}
+        onClick={rowTap}
+        style={{
+          display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 2px',
+          background: 'var(--color-bg)', cursor: 'pointer', touchAction: 'pan-y',
+          transform: `translateX(${dx}px)`, transition: dragging ? 'none' : 'transform 0.18s ease',
+        }}>
+        <div style={{
+          width: '24px', height: '24px', flexShrink: 0, border: `1.5px solid ${taken ? 'var(--color-accent)' : 'var(--color-border)'}`,
+          background: taken ? 'var(--color-accent)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          {taken && <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7L6 11L12 3" stroke="#fff" strokeWidth="2" /></svg>}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontFamily: "'Barlow', sans-serif", fontSize: '14px', fontWeight: 600, color: 'var(--color-text)' }}>{name}</div>
+          <div style={{ fontFamily: "'Barlow', sans-serif", fontSize: '11px', color: 'var(--color-text-dim)', marginTop: '1px', lineHeight: 1.4 }}>{note}</div>
+          <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '9px', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--color-text-muted)', marginTop: '2px' }}>{sub}</div>
+        </div>
+      </div>
+    </div>
   )
 }
 

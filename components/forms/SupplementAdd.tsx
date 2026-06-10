@@ -194,9 +194,9 @@ export default function SupplementAdd({ onClose, onAdded, defaultBarcode }: Prop
   }
 
   return (
+    <div style={{ position: 'fixed', inset: 0, background: 'var(--color-bg)', zIndex: 300, overflowY: 'auto' }}>
     <div style={{
-      position: 'fixed', inset: 0, background: 'var(--color-bg)', zIndex: 300,
-      overflowY: 'auto',
+      maxWidth: '390px', margin: '0 auto',
       padding: 'max(24px, env(safe-area-inset-top)) 20px max(40px, calc(40px + env(safe-area-inset-bottom)))',
     }}>
       {/* header */}
@@ -341,6 +341,7 @@ export default function SupplementAdd({ onClose, onAdded, defaultBarcode }: Prop
           <button style={{ ...ghostBtn, marginTop: '8px' }} onClick={() => setMode('menu')}>← BACK</button>
         </div>
       )}
+    </div>
     </div>
   )
 }

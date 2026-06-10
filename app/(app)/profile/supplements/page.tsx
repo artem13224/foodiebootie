@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import SupplementAdd from '@/components/forms/SupplementAdd'
 
@@ -61,6 +61,17 @@ export default function ManageSupplementsPage() {
     createClient().auth.getUser().then(({ data }) => setUid(data.user?.id ?? null))
     load()
   }, [load])
+
+  // Deep-link: /profile/supplements?stack=<id> opens that stack's editor.
+  const stackDeepLinked = useRef(false)
+  useEffect(() => {
+    if (loading || stackDeepLinked.current) return
+    const sid = new URLSearchParams(window.location.search).get('stack')
+    if (!sid) return
+    const st = stacks.find(s => s.id === sid)
+    if (st) { stackDeepLinked.current = true; openStackBuilder(st) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, stacks])
 
   function startEdit(s: Supplement) {
     setEditId(s.id)

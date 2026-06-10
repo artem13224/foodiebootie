@@ -147,8 +147,9 @@ export default function HealthAssessment({ onClose, onComplete }: Props) {
   const totalSteps = steps.length
 
   return (
+    <div style={{ position: 'fixed', inset: 0, background: 'var(--color-bg)', zIndex: 300, overflowY: 'auto' }}>
     <div style={{
-      position: 'fixed', inset: 0, background: 'var(--color-bg)', zIndex: 300, overflowY: 'auto',
+      maxWidth: '390px', margin: '0 auto',
       padding: 'max(24px, env(safe-area-inset-top)) 20px max(40px, calc(40px + env(safe-area-inset-bottom)))',
     }}>
       {/* header */}
@@ -353,6 +354,7 @@ export default function HealthAssessment({ onClose, onComplete }: Props) {
           </p>
         </div>
       )}
+    </div>
     </div>
   )
 }
