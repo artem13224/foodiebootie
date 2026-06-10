@@ -210,6 +210,11 @@ export default function WeightEntry({ onClose, onSaved, initialDate }: WeightEnt
             onChange={e => { if (e.target.value) setDate(e.target.value) }}
             style={{
               width: '100%',
+              boxSizing: 'border-box',
+              // Native date inputs ignore width:100% on WebKit without appearance reset,
+              // rendering wider than sibling fields. Reset to a plain box.
+              appearance: 'none',
+              WebkitAppearance: 'none',
               background: 'var(--color-bg)',
               border: '1px solid var(--color-border)',
               color: 'var(--color-text)',

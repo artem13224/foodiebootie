@@ -98,10 +98,26 @@ export async function POST(request: Request) {
     .select('logged_date, kcal')
     .gte('logged_date', cutoffStr) as { data: Pick<FoodLogRow, 'logged_date' | 'kcal'>[] | null; error: unknown }
 
-  const foodLogs = (foodLogsRaw ?? []).map(r => ({
-    logged_date: r.logged_date as string,
-    kcal: Number(r.kcal),
-  }))
+  // Exclude user-estimated (under-logged) days from the regression input.
+  // Estimated intake is morale data, not metabolism data — including it would
+  // corrupt the adaptive TDEE. Tolerant: if the table doesn't exist yet
+  // (pre-migration 006), `error` is set and we simply exclude nothing.
+  const estimatedDates = new Set<string>()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: estRows, error: estErr } = await (supabase as any)
+    .from('estimated_days')
+    .select('date')
+    .gte('date', cutoffStr) as { data: { date: string }[] | null; error: unknown }
+  if (!estErr && estRows) {
+    for (const r of estRows) estimatedDates.add(r.date)
+  }
+
+  const foodLogs = (foodLogsRaw ?? [])
+    .filter(r => !estimatedDates.has(r.logged_date as string))
+    .map(r => ({
+      logged_date: r.logged_date as string,
+      kcal: Number(r.kcal),
+    }))
 
   // ── 4. Fetch latest body measurements ────────────────────────────────────
   const { data: bodyMeasRaw } = await supabase

@@ -370,7 +370,8 @@ export default function EditProfilePage() {
           value={dateOfBirth}
           onChange={e => setDateOfBirth(e.target.value)}
           max={new Date().toISOString().split('T')[0]}
-          style={{ ...inputStyle, fontSize: '16px' }}
+          // appearance reset stops WebKit native date inputs rendering wider than siblings
+          style={{ ...inputStyle, fontSize: '16px', appearance: 'none', WebkitAppearance: 'none' }}
         />
         {dateOfBirth && (() => {
           const dob = new Date(dateOfBirth)

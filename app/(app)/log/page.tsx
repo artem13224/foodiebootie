@@ -72,6 +72,30 @@ function customToResult(cf: CustomFood): FoodResult {
   }
 }
 
+/**
+ * Insert a food_logs row with the serving-model columns, transparently falling
+ * back to legacy-only columns if migration 006 hasn't been applied yet. This
+ * keeps food logging working regardless of DB migration state (non-breaking).
+ */
+async function insertFoodLog(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  legacy: Record<string, unknown>,
+  serving: Record<string, unknown>,
+): Promise<{ message: string } | null> {
+  const full = await supabase.from('food_logs').insert({ ...legacy, ...serving })
+  if (!full.error) return null
+  const msg = String(full.error.message ?? '')
+  // Any problem rooted in the serving columns (missing column on older schemas,
+  // numeric range/overflow, check constraint) → retry with legacy columns only
+  // so logging still succeeds. Legacy columns are unchanged since the initial schema.
+  if (/column|schema cache|does not exist|numeric|overflow|out of range|violates/i.test(msg)) {
+    const legacyOnly = await supabase.from('food_logs').insert(legacy)
+    return legacyOnly.error ? { message: String(legacyOnly.error.message) } : null
+  }
+  return { message: msg }
+}
+
 // ── Main page ────────────────────────────────────────────────────────────────
 
 function LogPageInner() {
@@ -114,6 +138,8 @@ function LogPageInner() {
   const [quickAdd, setQuickAdd] = useState({ name: '', kcal: '', protein: '', carbs: '', fat: '' })
   const [qaQty, setQaQty] = useState('100')
   const [qaUnit, setQaUnit] = useState<Unit>('g')
+  // When on, the quick-added food is also saved to the shared library (custom_foods).
+  const [qaShare, setQaShare] = useState(false)
 
   // My Foods state
   const [customFoods, setCustomFoods] = useState<CustomFood[]>([])
@@ -122,6 +148,10 @@ function LogPageInner() {
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [newFood, setNewFood] = useState({ name: '', brand: '', serving: '100', kcal: '', protein: '', carbs: '', fat: '', fiber: '' })
   const [creatingFood, setCreatingFood] = useState(false)
+  // Default true preserves the existing shared-library behaviour; user can opt out.
+  const [shareFood, setShareFood] = useState(true)
+  // Holds a name+brand duplicate found at save time so we can offer the existing one.
+  const [dupeMatch, setDupeMatch] = useState<CustomFood | null>(null)
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -267,7 +297,8 @@ function LogPageInner() {
 
   async function handleLog() {
     if (!selectedFood || logging) return
-    const actualG = toGrams(parseFloat(servingQty) || 0, servingUnit, selectedFood.servingG)
+    const qty = parseFloat(servingQty) || 0
+    const actualG = toGrams(qty, servingUnit, selectedFood.servingG)
     if (actualG <= 0) return
     setLogging(true)
     setLogError('')
@@ -276,23 +307,50 @@ function LogPageInner() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setLogging(false); return }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await (supabase.from('food_logs') as any).insert({
+    // Scaled macros for the actual amount consumed
+    const kcalScaled = m(selectedFood.kcalPer100g, actualG)
+    const proteinScaled = m(selectedFood.proteinPer100g, actualG)
+    const carbsScaled = m(selectedFood.carbsPer100g, actualG)
+    const fatScaled = m(selectedFood.fatPer100g, actualG)
+    const fiberScaled = m(selectedFood.fiberPer100g, actualG)
+    // grams represented by ONE of the chosen unit (serving_size × servings = serving_g)
+    const perUnitG = qty > 0 ? Math.round((actualG / qty) * 1000) / 1000 : actualG
+
+    // Legacy columns (always present since the initial schema).
+    const legacy = {
       user_id: user.id,
       logged_date: loggingDate,
       meal_type: selectedMeal,
       food_name: selectedFood.name,
       serving_g: Math.round(actualG * 10) / 10,
-      kcal: m(selectedFood.kcalPer100g, actualG),
-      protein_g: m(selectedFood.proteinPer100g, actualG),
-      carbs_g: m(selectedFood.carbsPer100g, actualG),
-      fat_g: m(selectedFood.fatPer100g, actualG),
-      fiber_g: m(selectedFood.fiberPer100g, actualG),
+      kcal: kcalScaled,
+      protein_g: proteinScaled,
+      carbs_g: carbsScaled,
+      fat_g: fatScaled,
+      fiber_g: fiberScaled,
       usda_food_id: selectedFood.source === 'usda' ? selectedFood.id : null,
       off_food_id: selectedFood.source === 'off' ? selectedFood.id : null,
       custom_food_id: selectedFood.customFoodId ?? null,
-    })
+    }
+    // Serving-model columns (migration 004/006): persist the actual amount consumed.
+    // serving_size = the quantity typed, serving_unit = its unit, servings = 1.
+    // (servings is numeric(5,3) → must stay small; the amount lives in serving_size.)
+    const serving = {
+      logged_at: loggingDate,
+      brand: selectedFood.brand ?? null,
+      source: selectedFood.source,
+      source_id: selectedFood.id ?? null,
+      serving_size: Math.round(qty * 100) / 100,
+      serving_unit: servingUnit,
+      servings: 1,
+      calories: kcalScaled,
+      protein: proteinScaled,
+      carbs: carbsScaled,
+      fat: fatScaled,
+      fiber: fiberScaled,
+    }
 
+    const error = await insertFoodLog(supabase, legacy, serving)
     if (error) {
       setLogError(error.message)
       setLogging(false)
@@ -312,33 +370,95 @@ function LogPageInner() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setLogging(false); return }
 
-    const actualG = toGrams(parseFloat(qaQty) || 100, qaUnit)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await (supabase.from('food_logs') as any).insert({
+    const qaQtyNum = parseFloat(qaQty) || 100
+    const actualG = toGrams(qaQtyNum, qaUnit)
+    const proteinTotal = parseFloat(quickAdd.protein) || 0
+    const carbsTotal = parseFloat(quickAdd.carbs) || 0
+    const fatTotal = parseFloat(quickAdd.fat) || 0
+    const legacy = {
       user_id: user.id,
       logged_date: loggingDate,
       meal_type: selectedMeal,
       food_name: quickAdd.name,
       serving_g: Math.round(actualG * 10) / 10,
       kcal,
-      protein_g: parseFloat(quickAdd.protein) || 0,
-      carbs_g: parseFloat(quickAdd.carbs) || 0,
-      fat_g: parseFloat(quickAdd.fat) || 0,
-    })
+      protein_g: proteinTotal,
+      carbs_g: carbsTotal,
+      fat_g: fatTotal,
+    }
+    // Serving model: quick-add macros are entered as totals for the amount.
+    // serving_size = quantity typed, serving_unit = its unit, servings = 1.
+    const serving = {
+      logged_at: loggingDate,
+      source: 'manual',
+      serving_size: Math.round(qaQtyNum * 100) / 100,
+      serving_unit: qaUnit,
+      servings: 1,
+      calories: kcal,
+      protein: proteinTotal,
+      carbs: carbsTotal,
+      fat: fatTotal,
+    }
 
+    const error = await insertFoodLog(supabase, legacy, serving)
     if (error) {
       setLogError(error.message)
       setLogging(false)
       return
     }
 
+    // Optionally save to the shared library as a reusable custom food.
+    if (qaShare && actualG > 0) {
+      const nameNorm = quickAdd.name.trim().toLowerCase()
+      // Dedupe by lowercased name against the user-accessible library.
+      const dupe = await supabase
+        .from('custom_foods')
+        .select('id, name')
+        .ilike('name', quickAdd.name.trim())
+        .limit(50)
+      type CFLite = { id: string; name: string }
+      const rows = (dupe.data ?? []) as CFLite[]
+      const exists = rows.some(r => r.name.trim().toLowerCase() === nameNorm)
+      if (!exists) {
+        // Convert the entered totals to per-100g for custom_foods storage.
+        const per100 = (v: number) => Math.round((v / actualG) * 100 * 100) / 100
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (supabase.from('custom_foods') as any).insert({
+          created_by: user.id,
+          name: quickAdd.name.trim(),
+          brand: null,
+          serving_g: Math.round(actualG * 10) / 10,
+          kcal_per_100g: per100(kcal),
+          protein_per_100g: per100(proteinTotal),
+          carbs_per_100g: per100(carbsTotal),
+          fat_per_100g: per100(fatTotal),
+          fiber_per_100g: null,
+          is_shared: true,
+        })
+      }
+    }
+
     window.location.href = '/today'
   }
 
-  async function handleCreateCustomFood() {
+  async function handleCreateCustomFood(skipDupeCheck = false) {
     const kcal = parseFloat(newFood.kcal)
     if (!newFood.name || !kcal) return
+
+    // Dedupe against the accessible custom-food library (shared + own) by
+    // lowercased name + brand. customFoods is already loaded for this view.
+    if (!skipDupeCheck) {
+      const nameNorm = newFood.name.trim().toLowerCase()
+      const brandNorm = newFood.brand.trim().toLowerCase()
+      const existing = customFoods.find(cf =>
+        cf.name.trim().toLowerCase() === nameNorm &&
+        (cf.brand ?? '').trim().toLowerCase() === brandNorm
+      )
+      if (existing) { setDupeMatch(existing); return }
+    }
+
     setCreatingFood(true)
+    setDupeMatch(null)
 
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -355,13 +475,25 @@ function LogPageInner() {
       carbs_per_100g: parseFloat(newFood.carbs) || 0,
       fat_per_100g: parseFloat(newFood.fat) || 0,
       fiber_per_100g: parseFloat(newFood.fiber) || null,
-      is_shared: true,
+      is_shared: shareFood,
     })
 
     setCreatingFood(false)
     setShowCreateForm(false)
     setNewFood({ name: '', brand: '', serving: '100', kcal: '', protein: '', carbs: '', fat: '', fiber: '' })
+    setShareFood(true)
     loadCustomFoods()
+  }
+
+  /** User picked the existing duplicate instead of creating a new row. */
+  function useExistingDupe() {
+    if (!dupeMatch) return
+    const match = dupeMatch
+    setDupeMatch(null)
+    setShowCreateForm(false)
+    setNewFood({ name: '', brand: '', serving: '100', kcal: '', protein: '', carbs: '', fat: '', fiber: '' })
+    setShareFood(true)
+    openSheet(customToResult(match))
   }
 
   // ── Preview macros ────────────────────────────────────────────────────────
@@ -535,6 +667,43 @@ function LogPageInner() {
             />
           </div>
           <MealSelector selected={selectedMeal} onChange={setSelectedMeal} />
+
+          {/* Share with everyone toggle */}
+          <button
+            onClick={() => setQaShare(s => !s)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 'var(--space-3)',
+              background: 'none', border: 'none', cursor: 'pointer',
+              padding: 0, textAlign: 'left', width: '100%',
+            }}
+          >
+            <div style={{
+              width: '18px', height: '18px', flexShrink: 0,
+              border: `1px solid ${qaShare ? 'var(--color-accent)' : 'var(--color-border)'}`,
+              background: qaShare ? 'var(--color-accent)' : 'transparent',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              {qaShare && (
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+                  <path d="M2 5.5L4.5 8L9 3" stroke="#fff" strokeWidth="1.6" />
+                </svg>
+              )}
+            </div>
+            <span style={{
+              fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700,
+              fontSize: '11px', letterSpacing: 'var(--tracking-wide)',
+              textTransform: 'uppercase', color: 'var(--color-text)',
+            }}>
+              SHARE WITH EVERYONE
+            </span>
+          </button>
+
+          {logError && (
+            <div style={{ fontFamily: "'Barlow', sans-serif", fontSize: '12px', color: 'var(--color-danger)' }}>
+              {logError}
+            </div>
+          )}
+
           <button onClick={handleQuickAdd} disabled={logging || !quickAdd.name || !quickAdd.kcal}
             style={logBtnStyle(logging || !quickAdd.name || !quickAdd.kcal)}>
             {logging ? 'LOGGING...' : 'LOG'}
@@ -589,13 +758,75 @@ function LogPageInner() {
                   onChange={e => setNewFood(f => ({ ...f, fiber: e.target.value }))}
                   style={inputStyle} />
               </div>
+
+              {/* Share with everyone toggle */}
+              <button
+                onClick={() => setShareFood(s => !s)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 'var(--space-3)',
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  padding: 0, textAlign: 'left', width: '100%',
+                }}
+              >
+                <div style={{
+                  width: '18px', height: '18px', flexShrink: 0,
+                  border: `1px solid ${shareFood ? 'var(--color-accent)' : 'var(--color-border)'}`,
+                  background: shareFood ? 'var(--color-accent)' : 'transparent',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  {shareFood && (
+                    <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+                      <path d="M2 5.5L4.5 8L9 3" stroke="#fff" strokeWidth="1.6" />
+                    </svg>
+                  )}
+                </div>
+                <span style={{
+                  fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700,
+                  fontSize: '11px', letterSpacing: 'var(--tracking-wide)',
+                  textTransform: 'uppercase', color: 'var(--color-text)',
+                }}>
+                  SHARE WITH EVERYONE
+                </span>
+              </button>
+
+              {/* Duplicate found banner */}
+              {dupeMatch && (
+                <div style={{ border: '1px solid var(--color-warning)', padding: 'var(--space-3)' }}>
+                  <div style={{
+                    fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700,
+                    fontSize: '10px', letterSpacing: 'var(--tracking-wide)',
+                    textTransform: 'uppercase', color: 'var(--color-warning)',
+                    marginBottom: 'var(--space-2)',
+                  }}>
+                    ALREADY EXISTS: {dupeMatch.name}{dupeMatch.brand ? ` · ${dupeMatch.brand}` : ''}
+                  </div>
+                  <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                    <button onClick={useExistingDupe}
+                      style={{ ...logBtnStyle(false), flex: 1, fontSize: '13px', padding: 'var(--space-3)' }}>
+                      USE EXISTING
+                    </button>
+                    <button onClick={() => handleCreateCustomFood(true)}
+                      style={{
+                        flex: 1, padding: 'var(--space-3)',
+                        background: 'none', border: '1px solid var(--color-border)',
+                        cursor: 'pointer', color: 'var(--color-text-dim)',
+                        fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700,
+                        fontSize: '13px', letterSpacing: 'var(--tracking-wide)',
+                        textTransform: 'uppercase',
+                      }}>
+                      SAVE ANYWAY
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-                <button onClick={handleCreateCustomFood}
+                <button onClick={() => handleCreateCustomFood()}
                   disabled={creatingFood || !newFood.name || !newFood.kcal}
                   style={{ ...logBtnStyle(creatingFood || !newFood.name || !newFood.kcal), flex: 1 }}>
                   {creatingFood ? 'SAVING...' : 'SAVE FOOD'}
                 </button>
-                <button onClick={() => setShowCreateForm(false)} style={{
+                <button onClick={() => { setShowCreateForm(false); setDupeMatch(null) }} style={{
                   padding: 'var(--space-4) var(--space-5)',
                   background: 'none',
                   border: '1px solid var(--color-border)',

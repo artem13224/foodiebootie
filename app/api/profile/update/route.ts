@@ -12,6 +12,12 @@ const updateSchema = z.object({
   ]).optional().nullable(),
   protein_g_per_kg_lbm: z.number().min(1).max(4).optional(),
   unit_system: z.enum(['metric', 'imperial']).optional(),
+  // Goal fields — set via the goal-change flow. Additive; all optional so existing
+  // profile edits (which omit them) are unaffected.
+  goal_type: z.enum(['cut', 'maintain', 'bulk', 'recomp', 'performance']).optional().nullable(),
+  goal_weight_kg: z.number().positive().max(500).optional().nullable(),
+  goal_rate_kg_per_week: z.number().min(0).max(2).optional().nullable(),
+  goal_start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
 })
 
 export async function PATCH(request: Request) {

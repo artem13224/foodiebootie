@@ -11,6 +11,7 @@ import { clamp, localDateStr } from '@/lib/science/utils'
 import { computeWeeklyInsights } from '@/lib/science/weeklyInsights'
 import { parseAdaptationDetail, buildDietBreakRecommendation } from '@/lib/science/dietBreak'
 import DietBreakCard from '@/components/ui/DietBreakCard'
+import GoalEditor from '@/components/forms/GoalEditor'
 import { useUnitSystem } from '@/contexts/UnitSystemContext'
 import type { GoalType, ActivityLevel } from '@/types'
 
@@ -89,6 +90,8 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true)
   const [loggingOut, setLoggingOut] = useState(false)
   const [weeklyExpanded, setWeeklyExpanded] = useState(false)
+  const [showGoalEditor, setShowGoalEditor] = useState(false)
+  const [reloadKey, setReloadKey] = useState(0)
 
   // Weekly data
   const [weekFoodDays, setWeekFoodDays] = useState(0)   // days with ≥1 food log entry
@@ -200,7 +203,7 @@ export default function ProfilePage() {
       setLoading(false)
     }
     load()
-  }, [])
+  }, [reloadKey])
 
   async function handleLogout() {
     setLoggingOut(true)
@@ -361,23 +364,37 @@ export default function ProfilePage() {
 
       {/* ── Current Goal card ────────────────────────────────────────── */}
       {profile?.goal_type && profile.goal_type !== 'maintain' && goalWeight != null && currentWeight != null && (
-        <div style={{
-          border: '1px solid var(--color-border)',
-          padding: '16px',
-          marginBottom: 'var(--space-5)',
-        }}>
-          <span style={{
-            fontFamily: "'Barlow Condensed', sans-serif",
-            fontWeight: 700,
-            fontSize: '10px',
-            letterSpacing: '0.2em',
-            textTransform: 'uppercase',
-            color: 'var(--color-text-dim)',
-            display: 'block',
-            marginBottom: '12px',
+        <div
+          onClick={() => setShowGoalEditor(true)}
+          role="button"
+          style={{
+            border: '1px solid var(--color-border)',
+            padding: '16px',
+            marginBottom: 'var(--space-5)',
+            cursor: 'pointer',
           }}>
-            CURRENT GOAL
-          </span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+            <span style={{
+              fontFamily: "'Barlow Condensed', sans-serif",
+              fontWeight: 700,
+              fontSize: '10px',
+              letterSpacing: '0.2em',
+              textTransform: 'uppercase',
+              color: 'var(--color-text-dim)',
+            }}>
+              CURRENT GOAL
+            </span>
+            <span style={{
+              fontFamily: "'Barlow Condensed', sans-serif",
+              fontWeight: 700,
+              fontSize: '10px',
+              letterSpacing: '0.15em',
+              textTransform: 'uppercase',
+              color: 'var(--color-accent)',
+            }}>
+              CHANGE ›
+            </span>
+          </div>
 
           <ProgressBar value={progressPct} max={1} />
 
@@ -443,7 +460,7 @@ export default function ProfilePage() {
             Set your goal to unlock progress tracking.
           </span>
           <button
-            onClick={() => router.push('/profile/edit')}
+            onClick={() => setShowGoalEditor(true)}
             style={{
               background: 'var(--color-accent)',
               border: 'none',
@@ -462,6 +479,61 @@ export default function ProfilePage() {
             SET GOAL
           </button>
         </div>
+      )}
+
+      {/* ── Goal entry for non-directional goals (maintain/recomp/perf) ── */}
+      {profile?.goal_type && !(profile.goal_type !== 'maintain' && goalWeight != null && currentWeight != null) && (
+        <button
+          onClick={() => setShowGoalEditor(true)}
+          style={{
+            width: '100%',
+            border: '1px solid var(--color-border)',
+            background: 'none',
+            cursor: 'pointer',
+            padding: '16px',
+            marginBottom: 'var(--space-5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            textAlign: 'left',
+          }}
+        >
+          <span style={{
+            fontFamily: "'Barlow Condensed', sans-serif",
+            fontWeight: 700,
+            fontSize: '11px',
+            letterSpacing: '0.2em',
+            textTransform: 'uppercase',
+            color: 'var(--color-text)',
+          }}>
+            GOAL: {goalLabel}
+          </span>
+          <span style={{
+            fontFamily: "'Barlow Condensed', sans-serif",
+            fontWeight: 700,
+            fontSize: '10px',
+            letterSpacing: '0.15em',
+            textTransform: 'uppercase',
+            color: 'var(--color-accent)',
+          }}>
+            CHANGE ›
+          </span>
+        </button>
+      )}
+
+      {/* ── Goal editor modal ───────────────────────────────────────── */}
+      {showGoalEditor && (
+        <GoalEditor
+          onClose={() => setShowGoalEditor(false)}
+          onSaved={() => { setShowGoalEditor(false); setReloadKey(k => k + 1) }}
+          current={{
+            goal_type: profile?.goal_type ?? null,
+            goal_weight_kg: profile?.goal_weight_kg ?? null,
+            goal_rate_kg_per_week: profile?.goal_rate_kg_per_week ?? null,
+          }}
+          currentWeightKg={currentWeight}
+          unitSystem={unitSystem}
+        />
       )}
 
       {/* ── Diet-break recommendation (adaptation action layer) ──────── */}
